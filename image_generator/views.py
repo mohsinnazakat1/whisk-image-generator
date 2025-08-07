@@ -1,11 +1,15 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.conf import settings
 from django.views.decorators.http import require_http_methods
 from django.db.models import Count, Q
 from .models import BulkImageRequest, ImagePrompt
 from .tasks import generate_image_task
 from . import whisk
+import zipfile
+import io
+import base64
+import re
 import json
 import logging
 
@@ -125,3 +129,67 @@ def get_bulk_status(request, bulk_request_id):
         'status': bulk_request.get_status_display(),
         'prompts': list(prompts)
     })
+
+def download_all_images(request, bulk_request_id):
+    """Download all generated images as a ZIP file"""
+    bulk_request = get_object_or_404(BulkImageRequest, id=bulk_request_id)
+    
+    # Create a BytesIO buffer to store the ZIP file
+    buffer = io.BytesIO()
+    
+    with zipfile.ZipFile(buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+        for prompt in bulk_request.prompts.filter(status='completed'):
+            if prompt.generated_image:
+                # Extract the base64 data from the data URL
+                match = re.match(r'data:image/(\w+);base64,(.+)', prompt.generated_image)
+                if match:
+                    image_format, image_data = match.groups()
+                    
+                    # Create a sanitized filename from the prompt text
+                    filename = re.sub(r'[^\w\s-]', '', prompt.prompt_text)
+                    filename = re.sub(r'[-\s]+', '-', filename).strip('-')
+                    filename = f"{filename[:50]}.{image_format}"  # Limit filename length
+                    
+                    # Decode base64 and write to zip
+                    try:
+                        image_content = base64.b64decode(image_data)
+                        zip_file.writestr(filename, image_content)
+                    except Exception as e:
+                        logger.error(f"Error processing image for prompt {prompt.id}: {str(e)}")
+    
+    # Prepare the response
+    buffer.seek(0)
+    response = HttpResponse(buffer.getvalue(), content_type='application/zip')
+    response['Content-Disposition'] = f'attachment; filename=bulk_request_{bulk_request_id}_images.zip'
+    
+    return response
+
+@require_http_methods(["POST"])
+def retry_failed_prompt(request, prompt_id):
+    """Retry a single failed image prompt"""
+    try:
+        prompt = get_object_or_404(ImagePrompt, id=prompt_id)
+        if prompt.status == 'failed':
+            prompt.status = 'pending'
+            prompt.save()
+            generate_image_task.delay(prompt.id)
+            return JsonResponse({'status': 'success'})
+        return JsonResponse({'status': 'error', 'message': 'Only failed prompts can be retried'}, status=400)
+    except Exception as e:
+        logger.error(f"Error retrying prompt {prompt_id}: {str(e)}")
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+@require_http_methods(["POST"])
+def retry_all_failed(request, bulk_request_id):
+    """Retry all failed image prompts in a bulk request"""
+    try:
+        bulk_request = get_object_or_404(BulkImageRequest, id=bulk_request_id)
+        failed_prompts = bulk_request.prompts.filter(status='failed')
+        for prompt in failed_prompts:
+            prompt.status = 'pending'
+            prompt.save()
+            generate_image_task.delay(prompt.id)
+        return JsonResponse({'status': 'success', 'retried_count': failed_prompts.count()})
+    except Exception as e:
+        logger.error(f"Error retrying failed prompts for bulk request {bulk_request_id}: {str(e)}")
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)

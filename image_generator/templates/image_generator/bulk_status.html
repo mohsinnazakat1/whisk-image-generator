@@ -1,9 +1,18 @@
 {% extends "image_generator/base.html" %}
+{% csrf_token %}
 
 {% block content %}
 <div class="container">
     <h1>Bulk Generation Status</h1>
-    <p><strong>Status:</strong> <span id="bulk-status">{{ bulk_request.get_status_display }}</span></p>
+    <div class="status-header">
+        <div class="status-info">
+            <p><strong>Status:</strong> <span id="bulk-status">{{ bulk_request.get_status_display }}</span></p>
+        </div>
+        <div class="action-buttons">
+            <button id="retry-all-btn" class="btn retry-all" onclick="retryAllFailed()" style="display: none;">Retry All Failed</button>
+            <a href="{% url 'download_all_images' bulk_request.id %}" class="btn download-all">Download All Images</a>
+        </div>
+    </div>
 
     <div id="prompt-grid" class="image-grid">
         {% for prompt in bulk_request.prompts.all %}
@@ -14,6 +23,7 @@
                 <div class="prompt-details">
                     <p>{{ prompt.prompt_text }}</p>
                     <p>Status: <span class="status">{{ prompt.get_status_display }}</span></p>
+                    <button class="btn retry-btn" onclick="retryPrompt({{ prompt.id }})" style="display: none;">Retry</button>
                 </div>
             </div>
         {% endfor %}
@@ -21,9 +31,67 @@
 </div>
 
 <script>
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+function retryPrompt(promptId) {
+    const csrftoken = getCookie('csrftoken');
+    fetch(`/api/prompt/${promptId}/retry/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrftoken,
+            'Content-Type': 'application/json'
+        }
+    }).then(response => {
+        if (response.ok) {
+            const promptCard = document.getElementById(`prompt-${promptId}`);
+            const statusSpan = promptCard.querySelector('.status');
+            const retryBtn = promptCard.querySelector('.retry-btn');
+            statusSpan.textContent = 'pending';
+            retryBtn.style.display = 'none';
+            const placeholder = promptCard.querySelector('.image-placeholder');
+            if (placeholder) {
+                placeholder.innerHTML = '<div class="spinner"></div>';
+            }
+        } else {
+            alert('Failed to retry the image. Please try again.');
+        }
+    });
+}
+
+function retryAllFailed() {
+    const csrftoken = getCookie('csrftoken');
+    fetch(`/api/bulk/{{ bulk_request.id }}/retry-failed/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrftoken,
+            'Content-Type': 'application/json'
+        }
+    }).then(response => {
+        if (response.ok) {
+            location.reload();
+        } else {
+            alert('Failed to retry failed images. Please try again.');
+        }
+    });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     const bulkRequestId = {{ bulk_request.id }};
     const statusElement = document.getElementById('bulk-status');
+    const retryAllBtn = document.getElementById('retry-all-btn');
     
     function updateStatus() {
         fetch(`/api/bulk_status/${bulkRequestId}/`)
@@ -31,12 +99,22 @@ document.addEventListener('DOMContentLoaded', () => {
             .then(data => {
                 statusElement.textContent = data.status;
                 
+                let hasFailedPrompts = false;
                 data.prompts.forEach(prompt => {
                     const promptCard = document.getElementById(`prompt-${prompt.id}`);
                     const statusSpan = promptCard.querySelector('.status');
+                    const retryBtn = promptCard.querySelector('.retry-btn');
                     statusSpan.textContent = prompt.status;
 
-                    if (prompt.status === 'completed' && prompt.generated_image) {
+                    if (prompt.status === 'failed') {
+                        hasFailedPrompts = true;
+                        retryBtn.style.display = 'block';
+                        const placeholder = promptCard.querySelector('.image-placeholder');
+                        if (placeholder) {
+                            placeholder.innerHTML = '<p class="error-text">Failed</p>';
+                        }
+                    } else if (prompt.status === 'completed' && prompt.generated_image) {
+                        retryBtn.style.display = 'none';
                         const placeholder = promptCard.querySelector('.image-placeholder');
                         if (placeholder) {
                             const img = document.createElement('img');
@@ -44,13 +122,12 @@ document.addEventListener('DOMContentLoaded', () => {
                             placeholder.innerHTML = '';
                             placeholder.appendChild(img);
                         }
-                    } else if (prompt.status === 'failed') {
-                        const placeholder = promptCard.querySelector('.image-placeholder');
-                        if (placeholder) {
-                            placeholder.innerHTML = '<p class="error-text">Failed</p>';
-                        }
+                    } else {
+                        retryBtn.style.display = 'none';
                     }
                 });
+
+                retryAllBtn.style.display = hasFailedPrompts ? 'block' : 'none';
 
                 if (data.status !== 'Completed' && data.status !== 'Failed') {
                     setTimeout(updateStatus, 5000); // Poll every 5 seconds
@@ -89,6 +166,69 @@ document.addEventListener('DOMContentLoaded', () => {
 .error-text {
     color: #dc3545;
     font-weight: bold;
+}
+.status-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+.status-info {
+    flex: 1;
+}
+.action-buttons {
+    display: flex;
+    gap: 1rem;
+}
+.download-all {
+    background-color: #28a745;
+    color: white;
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+}
+.download-all:hover {
+    background-color: #218838;
+    text-decoration: none;
+    color: white;
+}
+.retry-all {
+    background-color: #17a2b8;
+    color: white;
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+.retry-all:hover {
+    background-color: #138496;
+}
+.retry-btn {
+    background-color: #ffc107;
+    color: #212529;
+    padding: 0.25rem 0.5rem;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-top: 0.5rem;
+}
+.retry-btn:hover {
+    background-color: #e0a800;
+}
+.image-card {
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 1rem;
+}
+.image-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 1rem;
+    padding: 1rem 0;
 }
 </style>
 {% endblock %}

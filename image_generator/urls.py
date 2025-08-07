@@ -9,4 +9,7 @@ urlpatterns = [
     path('bulk/status/<int:bulk_request_id>/', views.bulk_status, name='bulk_status'),
     path('api/bulk_status/<int:bulk_request_id>/', views.get_bulk_status, name='get_bulk_status'),
     path('api/bulk/<int:request_id>/delete/', views.delete_bulk_request, name='delete_bulk_request'),
+    path('api/prompt/<int:prompt_id>/retry/', views.retry_failed_prompt, name='retry_failed_prompt'),
+    path('api/bulk/<int:bulk_request_id>/retry-failed/', views.retry_all_failed, name='retry_all_failed'),
+    path('api/bulk/<int:bulk_request_id>/download/', views.download_all_images, name='download_all_images'),
 ]
