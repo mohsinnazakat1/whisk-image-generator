@@ -1,0 +1,4 @@
+django
+python-decouple
+requests
+psycopg2-binary
