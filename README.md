@@ -1,8 +1,24 @@
 # Whisk Image Generator
 
-This is a Django-based web application that uses the Whisk API to generate images from text prompts, both individually and in bulk.
+A Django-based web application that leverages the Whisk API to generate images from text prompts. Features include:
+- Single image generation with instant preview and download options
+- Bulk image generation for multiple prompts
+- Real-time status tracking for bulk generations
+- Clean and intuitive user interface
 
-## Setup
+## Features
+
+### Single Image Generation
+- Direct image generation without database storage
+- Instant preview functionality
+- One-click download option
+- Real-time error feedback
+
+### Bulk Image Generation
+- Process multiple prompts simultaneously
+- Background task processing with Celery
+- Progress tracking for each image
+- Status dashboard for bulk requests
 
 1.  **Clone the repository:**
     ```bash

@@ -5,14 +5,20 @@ from django.conf import settings
 def get_authorization_token():
     url = "https://labs.google/fx/api/auth/session"
     headers = {"Cookie": settings.WHISK_COOKIE}
-    response = requests.get(url, headers=headers)
-    if response.status_code == 200:
-        try:
-            data = response.json()
-            return data.get("access_token")
-        except json.JSONDecodeError:
-            return None
-    return None
+    try:
+        response = requests.get(url, headers=headers, timeout=30)
+        response.raise_for_status()  # Raises an HTTPError for bad responses
+        data = response.json()
+        token = data.get("access_token")
+        if not token:
+            raise ValueError("No access token in response")
+        return token
+    except requests.Timeout:
+        raise Exception("Authorization request timed out")
+    except requests.RequestException as e:
+        raise Exception(f"Authorization request failed: {str(e)}")
+    except (json.JSONDecodeError, ValueError) as e:
+        raise Exception(f"Invalid authorization response: {str(e)}")
 
 def get_new_project_id(title):
     url = "https://labs.google/fx/api/trpc/media.createOrUpdateWorkflow"

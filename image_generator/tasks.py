@@ -5,19 +5,42 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-@shared_task
-def generate_image_task(prompt_id):
+@shared_task(
+    bind=True,
+    max_retries=3,
+    name='image_generator.tasks.generate_image_task',
+    queue='image_generation'
+)
+def generate_image_task(self, prompt_id):
+    logger.info(f"Task started for prompt_id: {prompt_id}")
     try:
-        image_prompt = ImagePrompt.objects.get(id=prompt_id)
+        # Get the prompt
+        try:
+            image_prompt = ImagePrompt.objects.get(id=prompt_id)
+        except ImagePrompt.DoesNotExist:
+            logger.error(f"ImagePrompt with id {prompt_id} not found")
+            return
+
+        # Update status to processing
         image_prompt.status = 'processing'
         image_prompt.save()
-
-        auth_token = whisk.get_authorization_token()
-        if not auth_token:
+        logger.info(f"Starting image generation for prompt {prompt_id}: {image_prompt.prompt_text}")
+        
+        # Get auth token
+        try:
+            auth_token = whisk.get_authorization_token()
+            if not auth_token:
+                raise Exception('Empty authorization token received')
+            logger.info("Authorization token obtained successfully")
+        except Exception as e:
+            logger.error(f"Authorization failed: {str(e)}")
             raise Exception('Failed to get authorization token.')
 
+        logger.info("Authorization token obtained successfully")
+        
         project_id = whisk.get_new_project_id('Bulk Generation')
         if not project_id:
+            logger.error("Project ID creation failed")
             raise Exception('Failed to create new project.')
 
         image_data = whisk.generate_image(image_prompt.prompt_text, auth_token, project_id)

@@ -1,7 +1,9 @@
 from django.shortcuts import render, redirect
 from django.http import JsonResponse
+from django.conf import settings
 from .models import BulkImageRequest, ImagePrompt
 from .tasks import generate_image_task
+from . import whisk
 import json
 import logging
 
@@ -13,13 +15,51 @@ def index(request):
 def generate_image_view(request):
     if request.method == 'POST':
         prompt = request.POST.get('prompt')
-        images = []
-        error = None
         if not prompt:
-            error = 'Prompt is required.'
-        else:
-            # This view is now simplified as the core logic is in the single image generator
-            return render(request, 'image_generator/index.html', {'prompt': prompt, 'images': images, 'error': error})
+            return render(request, 'image_generator/index.html', {'error': 'Prompt is required.'})
+
+        try:
+            # Get auth token
+            auth_token = whisk.get_authorization_token()
+            if not auth_token:
+                raise Exception('Failed to get authorization token')
+
+            # Get project ID
+            project_id = whisk.get_new_project_id('Single Image')
+            if not project_id:
+                raise Exception('Failed to create project')
+
+            # Generate image directly
+            image_data = whisk.generate_image(prompt, auth_token, project_id)
+            if not image_data:
+                raise Exception('Failed to generate image')
+
+            # Extract the first image URL
+            image_url = None
+            for panel in image_data.get('imagePanels', []):
+                for image in panel.get('generatedImages', []):
+                    image_url = f"data:image/png;base64,{image.get('encodedImage')}"
+                    break
+                if image_url:
+                    break
+
+            if not image_url:
+                raise Exception('No image generated')
+
+            # Return to the same page with the generated image
+            return render(request, 'image_generator/index.html', {
+                'generated_image': image_url,
+                'prompt': prompt
+            })
+
+        except Exception as e:
+            logger.error(f"Error generating image: {str(e)}")
+            error_message = f"Error: {str(e)}"
+            logger.error(error_message)
+            return render(request, 'image_generator/index.html', {
+                'error': error_message if settings.DEBUG else 'Failed to generate image. Please try again.',
+                'prompt': prompt
+            })
     else:
         return render(request, 'image_generator/index.html')
 

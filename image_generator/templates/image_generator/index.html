@@ -14,19 +14,17 @@
         <button type="submit">Generate Images</button>
     </form>
 
-    {% if images %}
+    {% if generated_image %}
         <div class="image-gallery">
-            <h2>Generated Images</h2>
+            <h2>Generated Image</h2>
             <div class="image-grid">
-                {% for image_src in images %}
-                    <div class="image-card">
-                        <img src="{{ image_src }}" alt="Generated Image">
-                        <div class="image-actions">
-                            <a href="#" class="preview-btn" data-src="{{ image_src }}">Preview</a>
-                            <a href="{{ image_src }}" download="generated_image.png">Download</a>
-                        </div>
+                <div class="image-card">
+                    <img src="{{ generated_image }}" alt="Generated Image">
+                    <div class="image-actions">
+                        <a href="#" class="preview-btn" data-src="{{ generated_image }}">Preview</a>
+                        <a href="{{ generated_image }}" download="generated_image.png">Download</a>
                     </div>
-                {% endfor %}
+                </div>
             </div>
         </div>
     {% endif %}
