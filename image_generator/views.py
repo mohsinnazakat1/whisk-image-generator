@@ -1,6 +1,8 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
 from django.conf import settings
+from django.views.decorators.http import require_http_methods
+from django.db.models import Count, Q
 from .models import BulkImageRequest, ImagePrompt
 from .tasks import generate_image_task
 from . import whisk
@@ -54,14 +56,34 @@ def generate_image_view(request):
 
         except Exception as e:
             logger.error(f"Error generating image: {str(e)}")
-            error_message = f"Error: {str(e)}"
-            logger.error(error_message)
             return render(request, 'image_generator/index.html', {
-                'error': error_message if settings.DEBUG else 'Failed to generate image. Please try again.',
+                'error': str(e) if settings.DEBUG else 'Failed to generate image. Please try again.',
                 'prompt': prompt
             })
     else:
         return render(request, 'image_generator/index.html')
+
+def bulk_list(request):
+    """View to list all bulk image generation requests"""
+    bulk_requests = BulkImageRequest.objects.annotate(
+        completed_count=Count('prompts', filter=Q(prompts__status='completed')),
+        total_count=Count('prompts')
+    ).order_by('-created_at')
+    
+    return render(request, 'image_generator/bulk_list.html', {
+        'bulk_requests': bulk_requests
+    })
+
+@require_http_methods(["DELETE"])
+def delete_bulk_request(request, request_id):
+    """Delete a bulk request and all its associated images"""
+    try:
+        bulk_request = get_object_or_404(BulkImageRequest, id=request_id)
+        bulk_request.delete()
+        return JsonResponse({'status': 'success'})
+    except Exception as e:
+        logger.error(f"Error deleting bulk request {request_id}: {str(e)}")
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
 def bulk_image_generator(request):
     if request.method == 'POST':

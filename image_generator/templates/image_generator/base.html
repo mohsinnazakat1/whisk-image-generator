@@ -14,6 +14,7 @@
             <div class="nav-links">
                 <a href="{% url 'index' %}" class="nav-link {% if request.resolver_match.url_name == 'index' %}active{% endif %}">Single Image</a>
                 <a href="{% url 'bulk_image_generator' %}" class="nav-link {% if request.resolver_match.url_name == 'bulk_image_generator' %}active{% endif %}">Bulk Generate</a>
+                <a href="{% url 'bulk_list' %}" class="nav-link {% if request.resolver_match.url_name == 'bulk_list' %}active{% endif %}">View Generations</a>
             </div>
         </div>
     </nav>
