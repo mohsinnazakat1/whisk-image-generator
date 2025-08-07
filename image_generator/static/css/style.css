@@ -3,12 +3,62 @@ body {
     background-color: #f0f2f5;
     color: #1c1e21;
     margin: 0;
-    padding: 2rem;
+}
+
+.navbar {
+    background-color: #fff;
+    padding: 0 2rem;
+    border-bottom: 1px solid #dddfe2;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    display: flex;
+    justify-content: center;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.navbar .container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    max-width: 900px;
+    padding: 1rem 0;
+}
+
+.nav-brand {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #1877f2;
+    text-decoration: none;
+}
+
+.nav-links {
+    display: flex;
+    gap: 1rem;
+}
+
+.nav-link {
+    text-decoration: none;
+    color: #606770;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    transition: background-color 0.3s, color 0.3s;
+}
+
+.nav-link:hover {
+    background-color: #e7f3ff;
+    color: #1877f2;
+}
+
+.nav-link.active {
+    background-color: #1877f2;
+    color: #fff;
 }
 
 .container {
     max-width: 900px;
-    margin: 0 auto;
+    margin: 2rem auto;
     padding: 2rem;
     background-color: #fff;
     border-radius: 8px;

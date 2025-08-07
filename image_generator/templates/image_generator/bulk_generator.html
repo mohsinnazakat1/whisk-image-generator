@@ -1,0 +1,18 @@
+{% extends "image_generator/base.html" %}
+
+{% block content %}
+<div class="container">
+    <h1>Bulk Image Generator</h1>
+    <p>Enter a JSON array of strings, where each string is a prompt.</p>
+    
+    <form action="{% url 'bulk_image_generator' %}" method="post" class="prompt-form">
+        {% csrf_token %}
+        <textarea name="prompts" rows="10" placeholder='[
+    "A futuristic city with flying cars",
+    "A serene forest with a hidden waterfall",
+    "A steampunk-inspired robot reading a book"
+]' required></textarea>
+        <button type="submit">Generate Images</button>
+    </form>
+</div>
+{% endblock %}

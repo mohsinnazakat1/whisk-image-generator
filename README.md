@@ -1,6 +1,6 @@
 # Whisk Image Generator
 
-This is a Django-based web application that uses the Whisk API to generate images from text prompts.
+This is a Django-based web application that uses the Whisk API to generate images from text prompts, both individually and in bulk.
 
 ## Setup
 
@@ -10,18 +10,29 @@ This is a Django-based web application that uses the Whisk API to generate image
     cd whisk-api
     ```
 
-2.  **Create and activate a virtual environment:**
+2.  **Install Redis:**
+    *   **On macOS (using Homebrew):**
+        ```bash
+        brew install redis
+        ```
+    *   **On Ubuntu/Debian:**
+        ```bash
+        sudo apt-get update
+        sudo apt-get install redis-server
+        ```
+
+3.  **Create and activate a virtual environment:**
     ```bash
     python3 -m venv virtual-env
     source virtual-env/bin/activate
     ```
 
-3.  **Install the dependencies:**
+4.  **Install the dependencies:**
     ```bash
     pip install -r requirements.txt
     ```
 
-4.  **Set up the PostgreSQL database:**
+5.  **Set up the PostgreSQL database:**
     *   Log in to your PostgreSQL server:
         ```bash
         sudo -u postgres psql
@@ -37,7 +48,7 @@ This is a Django-based web application that uses the Whisk API to generate image
         \q
         ```
 
-5.  **Create a `.env` file** in the root of the project and add the following, replacing the placeholders with your actual credentials:
+6.  **Create a `.env` file** in the root of the project and add the following, replacing the placeholders with your actual credentials:
     ```
     SECRET_KEY='your-secret-key'
     WHISK_COOKIE='your-whisk-cookie'
@@ -48,16 +59,30 @@ This is a Django-based web application that uses the Whisk API to generate image
     DB_PORT='5432'
     ```
 
-6.  **Run the database migrations:**
+7.  **Run the database migrations:**
     ```bash
     python manage.py migrate
     ```
 
 ## Running the Application
 
-1.  **Start the development server:**
+1.  **Start Redis:**
     ```bash
-    python manage.py runserver
+    redis-server
     ```
 
-2.  Open your web browser and navigate to `http://127.0.0.1:8000/` to use the application.
+2.  **Start the Celery worker:**
+    *   Open a new terminal window, navigate to the project directory, and activate the virtual environment.
+    *   Run the following command:
+        ```bash
+        celery -A whisk_project worker -l info
+        ```
+
+3.  **Start the development server:**
+    *   Open another new terminal window, navigate to the project directory, and activate the virtual environment.
+    *   Run the following command:
+        ```bash
+        python manage.py runserver
+        ```
+
+4.  Open your web browser and navigate to `http://127.0.0.1:8000/` to use the application.

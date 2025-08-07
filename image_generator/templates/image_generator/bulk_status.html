@@ -1,0 +1,94 @@
+{% extends "image_generator/base.html" %}
+
+{% block content %}
+<div class="container">
+    <h1>Bulk Generation Status</h1>
+    <p><strong>Status:</strong> <span id="bulk-status">{{ bulk_request.get_status_display }}</span></p>
+
+    <div id="prompt-grid" class="image-grid">
+        {% for prompt in bulk_request.prompts.all %}
+            <div class="image-card" id="prompt-{{ prompt.id }}">
+                <div class="image-placeholder">
+                    <div class="spinner"></div>
+                </div>
+                <div class="prompt-details">
+                    <p>{{ prompt.prompt_text }}</p>
+                    <p>Status: <span class="status">{{ prompt.get_status_display }}</span></p>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const bulkRequestId = {{ bulk_request.id }};
+    const statusElement = document.getElementById('bulk-status');
+    
+    function updateStatus() {
+        fetch(`/api/bulk_status/${bulkRequestId}/`)
+            .then(response => response.json())
+            .then(data => {
+                statusElement.textContent = data.status;
+                
+                data.prompts.forEach(prompt => {
+                    const promptCard = document.getElementById(`prompt-${prompt.id}`);
+                    const statusSpan = promptCard.querySelector('.status');
+                    statusSpan.textContent = prompt.status;
+
+                    if (prompt.status === 'completed' && prompt.generated_image) {
+                        const placeholder = promptCard.querySelector('.image-placeholder');
+                        if (placeholder) {
+                            const img = document.createElement('img');
+                            img.src = prompt.generated_image;
+                            placeholder.innerHTML = '';
+                            placeholder.appendChild(img);
+                        }
+                    } else if (prompt.status === 'failed') {
+                        const placeholder = promptCard.querySelector('.image-placeholder');
+                        if (placeholder) {
+                            placeholder.innerHTML = '<p class="error-text">Failed</p>';
+                        }
+                    }
+                });
+
+                if (data.status !== 'Completed' && data.status !== 'Failed') {
+                    setTimeout(updateStatus, 5000); // Poll every 5 seconds
+                }
+            });
+    }
+
+    updateStatus();
+});
+</script>
+
+<style>
+.image-placeholder {
+    width: 100%;
+    height: 200px;
+    background-color: #e9ecef;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+.spinner {
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #3498db;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: spin 1s linear infinite;
+}
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+.prompt-details {
+    padding: 1rem;
+}
+.error-text {
+    color: #dc3545;
+    font-weight: bold;
+}
+</style>
+{% endblock %}
