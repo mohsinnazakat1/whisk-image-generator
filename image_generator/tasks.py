@@ -1,5 +1,5 @@
 from celery import shared_task
-from .models import ImagePrompt
+from .models import ImagePrompt, WhiskSettings
 from . import whisk
 import logging
 
@@ -26,24 +26,15 @@ def generate_image_task(self, prompt_id):
         image_prompt.save()
         logger.info(f"Starting image generation for prompt {prompt_id}: {image_prompt.prompt_text}")
         
-        # Get auth token
-        try:
-            auth_token = whisk.get_authorization_token()
-            if not auth_token:
-                raise Exception('Empty authorization token received')
-            logger.info("Authorization token obtained successfully")
-        except Exception as e:
-            logger.error(f"Authorization failed: {str(e)}")
-            raise Exception('Failed to get authorization token.')
-
-        logger.info("Authorization token obtained successfully")
+        # Check if settings are configured
+        whisk_settings = WhiskSettings.get_settings()
+        if not whisk_settings.auth_token or not whisk_settings.project_id:
+            logger.error("Whisk settings not configured")
+            raise Exception('Whisk API settings not configured. Please configure auth token and project ID.')
         
-        project_id = whisk.get_new_project_id('Bulk Generation')
-        if not project_id:
-            logger.error("Project ID creation failed")
-            raise Exception('Failed to create new project.')
+        logger.info("Using configured auth token and project ID from database")
 
-        image_data = whisk.generate_image(image_prompt.prompt_text, auth_token, project_id)
+        image_data = whisk.generate_image(image_prompt.prompt_text)
         if not image_data:
             raise Exception('Failed to generate image (empty response).')
 

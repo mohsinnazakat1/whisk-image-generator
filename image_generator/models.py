@@ -1,5 +1,28 @@
 from django.db import models
 
+class WhiskSettings(models.Model):
+    auth_token = models.CharField(max_length=500, help_text="Authentication token for Whisk API")
+    project_id = models.CharField(max_length=100, help_text="Default project ID for Whisk API")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Whisk Settings"
+        verbose_name_plural = "Whisk Settings"
+
+    def __str__(self):
+        return f"Whisk Settings (Last updated: {self.updated_at})"
+
+    @classmethod
+    def get_settings(cls):
+        settings = cls.objects.first()
+        if not settings:
+            settings = cls.objects.create(
+                auth_token="",
+                project_id=""
+            )
+        return settings
+
 class BulkImageRequest(models.Model):
     STATUS_CHOICES = [
         ('pending', 'Pending'),

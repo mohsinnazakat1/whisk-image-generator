@@ -1,0 +1,152 @@
+{% extends 'image_generator/base.html' %}
+
+{% block title %}Whisk API Settings{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>Whisk API Settings</h1>
+
+    {% if messages %}
+        {% for message in messages %}
+            {% if message.tags == 'success' %}
+                <div style="color: #155724; background-color: #d4edda; border: 1px solid #c3e6cb; padding: 1rem; border-radius: 6px; margin: 1rem 0;">
+                    {{ message }}
+                </div>
+            {% elif message.tags == 'error' %}
+                <div class="error">{{ message }}</div>
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+
+    <!-- Instructions Section -->
+    <div style="background-color: #e7f3ff; border: 1px solid #b3d9ff; border-radius: 8px; padding: 1.5rem; margin: 2rem 0;">
+        <h3 style="color: #1877f2; margin-top: 0; margin-bottom: 1rem;">How to Get Your Credentials</h3>
+        
+        <div style="margin-bottom: 2rem;">
+            <h4 style="color: #1c1e21; margin-bottom: 0.5rem;">🔑 Authentication Token:</h4>
+            <ol style="margin: 0.5rem 0; padding-left: 1.5rem; color: #606770;">
+                <li>Go to <a href="https://labs.google/fx/tools/whisk/" target="_blank" style="color: #1877f2;">Whisk website</a></li>
+                <li>Generate an image (any image)</li>
+                <li>Open browser console (F12 → Console tab)</li>
+                <li>Run the code below and copy the token:</li>
+            </ol>
+            
+            <div style="background-color: #f7f8fa; border: 1px solid #dddfe2; border-radius: 6px; padding: 1rem; margin: 1rem 0; position: relative;">
+                <code id="authTokenCode" style="font-family: 'Courier New', monospace; font-size: 0.875rem; color: #1c1e21; display: block; white-space: pre-wrap; word-break: break-all;">let script = document.querySelector("#__NEXT_DATA__");
+let obj = JSON.parse(script.textContent);
+let authToken = obj["props"]["pageProps"]["session"]["access_token"];
+window.prompt("Copy the auth token: ", authToken);</code>
+                <button type="button" onclick="copyAuthTokenCode()" style="position: absolute; top: 0.5rem; right: 0.5rem; background-color: #1877f2; color: #fff; border: none; border-radius: 4px; padding: 0.25rem 0.5rem; font-size: 0.75rem; cursor: pointer; transition: background-color 0.3s;">
+                    Copy Code
+                </button>
+            </div>
+        </div>
+
+        <div>
+            <h4 style="color: #1c1e21; margin-bottom: 0.5rem;">🆔 Project ID:</h4>
+            <ol style="margin: 0.5rem 0; padding-left: 1.5rem; color: #606770;">
+                <li>After generating an image, look at the URL in your browser</li>
+                <li>Find the URL pattern: <code style="background-color: #fff; padding: 0.25rem; border-radius: 3px;">https://labs.google/fx/tools/whisk/project/[PROJECT_ID]</code></li>
+                <li>Copy the PROJECT_ID part (e.g., <code style="background-color: #fff; padding: 0.25rem; border-radius: 3px;">8cc4a769-672d-412f-8162-a1294c456142</code>)</li>
+            </ol>
+        </div>
+    </div>
+
+    <form class="prompt-form" method="post">
+        {% csrf_token %}
+        
+        <div style="margin-bottom: 1.5rem;">
+            <label for="{{ form.auth_token.id_for_label }}" style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #1c1e21;">
+                {{ form.auth_token.label }} <span style="color: #fa383e;">*</span>
+            </label>
+            {{ form.auth_token }}
+            {% if form.auth_token.help_text %}
+                <div style="font-size: 0.875rem; color: #606770; margin-top: 0.25rem;">{{ form.auth_token.help_text }}</div>
+            {% endif %}
+            {% if form.auth_token.errors %}
+                <div style="color: #fa383e; margin-top: 0.25rem;">
+                    {% for error in form.auth_token.errors %}
+                        <small>{{ error }}</small>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+
+        <div style="margin-bottom: 1.5rem;">
+            <label for="{{ form.project_id.id_for_label }}" style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #1c1e21;">
+                {{ form.project_id.label }} <span style="color: #fa383e;">*</span>
+            </label>
+            {{ form.project_id }}
+            {% if form.project_id.help_text %}
+                <div style="font-size: 0.875rem; color: #606770; margin-top: 0.25rem;">{{ form.project_id.help_text }}</div>
+            {% endif %}
+            {% if form.project_id.errors %}
+                <div style="color: #fa383e; margin-top: 0.25rem;">
+                    {% for error in form.project_id.errors %}
+                        <small>{{ error }}</small>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+
+        <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 2rem;">
+            <a href="{% url 'settings_view' %}" style="display: inline-block; padding: 0.75rem 1.5rem; background-color: #42b883; color: #fff; text-decoration: none; border-radius: 6px; font-weight: 600; transition: background-color 0.3s;">
+                View Only
+            </a>
+            <button type="submit">Save Settings</button>
+        </div>
+    </form>
+
+    {% if settings.created_at %}
+        <div style="margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #dddfe2;">
+            <div style="display: flex; justify-content: space-between; font-size: 0.875rem; color: #606770;">
+                <span><strong>Created:</strong> {{ settings.created_at|date:"M d, Y H:i" }}</span>
+                <span><strong>Last Updated:</strong> {{ settings.updated_at|date:"M d, Y H:i" }}</span>
+            </div>
+        </div>
+    {% endif %}
+
+    <div style="margin-top: 2rem;">
+        <a href="{% url 'index' %}" style="display: inline-block; padding: 0.75rem 1.5rem; background-color: transparent; color: #606770; border: 1px solid #dddfe2; text-decoration: none; border-radius: 6px; font-weight: 600; transition: all 0.3s;">
+            ← Back to Home
+        </a>
+    </div>
+</div>
+
+<script>
+function copyAuthTokenCode() {
+    const code = document.getElementById('authTokenCode').textContent;
+    navigator.clipboard.writeText(code).then(function() {
+        // Show success feedback
+        const button = event.target;
+        const originalText = button.textContent;
+        button.textContent = 'Copied!';
+        button.style.backgroundColor = '#42b883';
+        
+        setTimeout(function() {
+            button.textContent = originalText;
+            button.style.backgroundColor = '#1877f2';
+        }, 2000);
+    }).catch(function(err) {
+        // Fallback for older browsers
+        const textArea = document.createElement('textarea');
+        textArea.value = code;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        
+        // Show success feedback
+        const button = event.target;
+        const originalText = button.textContent;
+        button.textContent = 'Copied!';
+        button.style.backgroundColor = '#42b883';
+        
+        setTimeout(function() {
+            button.textContent = originalText;
+            button.style.backgroundColor = '#1877f2';
+        }, 2000);
+    });
+}
+</script>
+{% endblock %}

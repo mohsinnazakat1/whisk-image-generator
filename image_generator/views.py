@@ -3,7 +3,9 @@ from django.http import JsonResponse, HttpResponse
 from django.conf import settings
 from django.views.decorators.http import require_http_methods
 from django.db.models import Count, Q
-from .models import BulkImageRequest, ImagePrompt
+from django.contrib import messages
+from .models import BulkImageRequest, ImagePrompt, WhiskSettings
+from .forms import WhiskSettingsForm
 from .tasks import generate_image_task
 from . import whisk
 import zipfile
@@ -16,7 +18,13 @@ import logging
 logger = logging.getLogger(__name__)
 
 def index(request):
-    return render(request, 'image_generator/index.html')
+    # Check if Whisk settings are configured
+    whisk_settings = WhiskSettings.get_settings()
+    settings_configured = bool(whisk_settings.auth_token and whisk_settings.project_id)
+    
+    return render(request, 'image_generator/index.html', {
+        'settings_configured': settings_configured
+    })
 
 def generate_image_view(request):
     if request.method == 'POST':
@@ -25,18 +33,16 @@ def generate_image_view(request):
             return render(request, 'image_generator/index.html', {'error': 'Prompt is required.'})
 
         try:
-            # Get auth token
-            auth_token = whisk.get_authorization_token()
-            if not auth_token:
-                raise Exception('Failed to get authorization token')
+            # Check if settings are configured
+            whisk_settings = WhiskSettings.get_settings()
+            if not whisk_settings.auth_token or not whisk_settings.project_id:
+                return render(request, 'image_generator/index.html', {
+                    'error': 'Please configure your Whisk API settings first. Go to Settings to add your auth token and project ID.',
+                    'prompt': prompt
+                })
 
-            # Get project ID
-            project_id = whisk.get_new_project_id('Single Image')
-            if not project_id:
-                raise Exception('Failed to create project')
-
-            # Generate image directly
-            image_data = whisk.generate_image(prompt, auth_token, project_id)
+            # Generate image using database settings
+            image_data = whisk.generate_image(prompt)
             if not image_data:
                 raise Exception('Failed to generate image')
 
@@ -193,3 +199,30 @@ def retry_all_failed(request, bulk_request_id):
     except Exception as e:
         logger.error(f"Error retrying failed prompts for bulk request {bulk_request_id}: {str(e)}")
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+def whisk_settings(request):
+    """View to display and update Whisk API settings"""
+    settings_obj = WhiskSettings.get_settings()
+    
+    if request.method == 'POST':
+        form = WhiskSettingsForm(request.POST, instance=settings_obj)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Whisk settings updated successfully!')
+            return redirect('whisk_settings')
+        else:
+            messages.error(request, 'Please correct the errors below.')
+    else:
+        form = WhiskSettingsForm(instance=settings_obj)
+    
+    return render(request, 'image_generator/whisk_settings.html', {
+        'form': form,
+        'settings': settings_obj
+    })
+
+def settings_view(request):
+    """View current settings (read-only)"""
+    settings_obj = WhiskSettings.get_settings()
+    return render(request, 'image_generator/settings_view.html', {
+        'settings': settings_obj
+    })

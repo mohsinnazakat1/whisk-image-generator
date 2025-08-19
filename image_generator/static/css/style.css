@@ -197,3 +197,248 @@ h1 {
     font-weight: bold;
     cursor: pointer;
 }
+/* Form styles for settings */
+.form-control {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #dddfe2;
+    border-radius: 6px;
+    font-size: 1rem;
+    box-sizing: border-box;
+    transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: #1877f2;
+    box-shadow: 0 0 0 2px rgba(24, 119, 242, 0.2);
+}
+
+.form-label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    color: #1c1e21;
+}
+
+.form-text {
+    font-size: 0.875rem;
+    color: #606770;
+    margin-top: 0.25rem;
+}
+
+.text-danger {
+    color: #fa383e;
+}
+
+.text-warning {
+    color: #f56500;
+}
+
+.text-muted {
+    color: #606770;
+}
+
+.btn {
+    display: inline-block;
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+    font-weight: 600;
+    text-align: center;
+    text-decoration: none;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.btn-primary {
+    background-color: #1877f2;
+    color: #fff;
+}
+
+.btn-primary:hover {
+    background-color: #166fe5;
+}
+
+.btn-secondary {
+    background-color: #42b883;
+    color: #fff;
+}
+
+.btn-secondary:hover {
+    background-color: #369870;
+}
+
+.btn-outline-secondary {
+    background-color: transparent;
+    color: #606770;
+    border: 1px solid #dddfe2;
+}
+
+.btn-outline-secondary:hover {
+    background-color: #f7f8fa;
+    color: #1c1e21;
+}
+
+.alert {
+    padding: 1rem;
+    margin-bottom: 1rem;
+    border-radius: 6px;
+    position: relative;
+}
+
+.alert-success {
+    background-color: #d4edda;
+    border: 1px solid #c3e6cb;
+    color: #155724;
+}
+
+.alert-danger {
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+    color: #721c24;
+}
+
+.alert-dismissible .btn-close {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    background: none;
+    border: none;
+    font-size: 1.25rem;
+    cursor: pointer;
+    opacity: 0.5;
+}
+
+.alert-dismissible .btn-close:hover {
+    opacity: 1;
+}
+
+.card {
+    background-color: #fff;
+    border: 1px solid #dddfe2;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.card-header {
+    padding: 1rem 1.5rem;
+    background-color: #f7f8fa;
+    border-bottom: 1px solid #dddfe2;
+    border-radius: 8px 8px 0 0;
+}
+
+.card-body {
+    padding: 1.5rem;
+}
+
+.bg-light {
+    background-color: #f7f8fa !important;
+}
+
+.p-2 {
+    padding: 0.5rem !important;
+}
+
+.rounded {
+    border-radius: 6px !important;
+}
+
+.d-block {
+    display: block !important;
+}
+
+.d-grid {
+    display: grid !important;
+}
+
+.d-md-flex {
+    display: flex !important;
+}
+
+.justify-content-md-end {
+    justify-content: flex-end !important;
+}
+
+.gap-2 {
+    gap: 0.5rem !important;
+}
+
+.me-md-2 {
+    margin-right: 0.5rem !important;
+}
+
+.mt-3 {
+    margin-top: 1rem !important;
+}
+
+.mt-4 {
+    margin-top: 1.5rem !important;
+}
+
+.mb-0 {
+    margin-bottom: 0 !important;
+}
+
+.mb-3 {
+    margin-bottom: 1rem !important;
+}
+
+.text-end {
+    text-align: right !important;
+}
+
+.row {
+    display: flex;
+    flex-wrap: wrap;
+    margin-right: -0.75rem;
+    margin-left: -0.75rem;
+}
+
+.col-md-4 {
+    flex: 0 0 auto;
+    width: 33.33333333%;
+    padding-right: 0.75rem;
+    padding-left: 0.75rem;
+}
+
+.col-md-6 {
+    flex: 0 0 auto;
+    width: 50%;
+    padding-right: 0.75rem;
+    padding-left: 0.75rem;
+}
+
+.col-md-8 {
+    flex: 0 0 auto;
+    width: 66.66666667%;
+    padding-right: 0.75rem;
+    padding-left: 0.75rem;
+}
+
+@media (max-width: 768px) {
+    .col-md-4,
+    .col-md-6,
+    .col-md-8 {
+        width: 100%;
+        margin-bottom: 1rem;
+    }
+    
+    .text-end {
+        text-align: left !important;
+    }
+    
+    .d-md-flex {
+        display: block !important;
+    }
+    
+    .justify-content-md-end {
+        justify-content: flex-start !important;
+    }
+    
+    .me-md-2 {
+        margin-right: 0 !important;
+        margin-bottom: 0.5rem !important;
+    }
+}

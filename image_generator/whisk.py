@@ -1,24 +1,7 @@
 import requests
 import json
 from django.conf import settings
-
-def get_authorization_token():
-    url = "https://labs.google/fx/api/auth/session"
-    headers = {"Cookie": settings.WHISK_COOKIE}
-    try:
-        response = requests.get(url, headers=headers, timeout=30)
-        response.raise_for_status()  # Raises an HTTPError for bad responses
-        data = response.json()
-        token = data.get("access_token")
-        if not token:
-            raise ValueError("No access token in response")
-        return token
-    except requests.Timeout:
-        raise Exception("Authorization request timed out")
-    except requests.RequestException as e:
-        raise Exception(f"Authorization request failed: {str(e)}")
-    except (json.JSONDecodeError, ValueError) as e:
-        raise Exception(f"Invalid authorization response: {str(e)}")
+from .models import WhiskSettings
 
 def get_new_project_id(title):
     url = "https://labs.google/fx/api/trpc/media.createOrUpdateWorkflow"
@@ -44,15 +27,17 @@ def get_new_project_id(title):
             return None
     return None
 
-def generate_image(prompt, auth_token, project_id):
+def generate_image(prompt):
     url = "https://aisandbox-pa.googleapis.com/v1/whisk:generateImage"
+    whisk_settings = WhiskSettings.get_settings()
+    
     headers = {
-        "Authorization": f"Bearer {auth_token}",
+        "Authorization": f"Bearer {whisk_settings.auth_token}",
         "Content-Type": "application/json",
     }
     data = {
         "clientContext": {
-            "workflowId": project_id,
+            "workflowId": whisk_settings.project_id,
             "tool": "BACKBONE",
             "sessionId": ";1748281496093"
         },
