@@ -28,23 +28,45 @@
         </div>
         
         <div class="form-group">
-            <label for="prompts" class="form-label">
-                <span class="label-text">Image Prompts</span>
-                <span class="label-required">*</span>
+            <label for="prompts-input" class="form-label">
+                <span class="label-text">Add Image Prompts</span>
             </label>
-            <textarea id="prompts" 
-                      name="prompts" 
+            <textarea id="prompts-input" 
                       class="form-control prompts-textarea" 
-                      rows="12" 
-                      placeholder='[
+                      rows="6" 
+                      placeholder='Paste prompts here as JSON array or one per line:
+
+[
     "A futuristic city with flying cars at sunset",
-    "A serene forest with a hidden waterfall and magical lighting",
-    "A steampunk-inspired robot reading a book in a library",
-    "An underwater palace with coral gardens and tropical fish"
-]' 
-                      required>{{ prompts|default:'' }}</textarea>
-            <div class="form-help">Enter a JSON array where each string is an image prompt. Images will be generated in the same order as listed.</div>
+    "A serene forest with a hidden waterfall"
+]
+
+OR
+
+A futuristic city with flying cars at sunset
+A serene forest with a hidden waterfall'></textarea>
+            <button type="button" id="add-prompts-btn" class="btn-add-prompts">
+                <span class="btn-icon">➕</span>
+                Add Prompts
+            </button>
+            <div class="form-help">Paste prompts as JSON array or one per line, then click "Add Prompts" to add them to your list.</div>
         </div>
+
+        <div class="form-group">
+            <label class="form-label">
+                <span class="label-text">Prompt List</span>
+                <span class="label-required">*</span>
+                <span class="prompt-count">(0 prompts)</span>
+            </label>
+            <div id="prompts-list" class="prompts-list">
+                <div class="empty-state">
+                    <p>No prompts added yet. Add some prompts above to get started!</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Hidden input for form submission -->
+        <input type="hidden" id="prompts" name="prompts" required>
         
         <button type="submit" class="btn-generate">
             <span class="btn-icon">🎨</span>
@@ -52,6 +74,212 @@
         </button>
     </form>
 </div>
+
+<script>
+let promptsList = [];
+
+function updatePromptsDisplay() {
+    const promptsListElement = document.getElementById('prompts-list');
+    const promptCountElement = document.querySelector('.prompt-count');
+    const hiddenInput = document.getElementById('prompts');
+    
+    // Update count
+    promptCountElement.textContent = `(${promptsList.length} prompts)`;
+    
+    // Update hidden input for form submission
+    hiddenInput.value = JSON.stringify(promptsList);
+    
+    if (promptsList.length === 0) {
+        promptsListElement.innerHTML = `
+            <div class="empty-state">
+                <p>No prompts added yet. Add some prompts above to get started!</p>
+            </div>
+        `;
+        return;
+    }
+    
+    // Generate prompt items
+    const promptsHTML = promptsList.map((prompt, index) => `
+        <div class="prompt-item" data-index="${index}">
+            <div class="prompt-number">#${index + 1}</div>
+            <div class="prompt-content">
+                <div class="prompt-text" id="prompt-text-${index}">${escapeHtml(prompt)}</div>
+                <textarea class="prompt-edit" id="prompt-edit-${index}" style="display: none;">${escapeHtml(prompt)}</textarea>
+            </div>
+            <div class="prompt-actions">
+                <button type="button" class="btn-edit" onclick="editPrompt(${index})" id="edit-btn-${index}">
+                    <span class="btn-icon">✏️</span>
+                    Edit
+                </button>
+                <button type="button" class="btn-save" onclick="savePrompt(${index})" id="save-btn-${index}" style="display: none;">
+                    <span class="btn-icon">💾</span>
+                    Save
+                </button>
+                <button type="button" class="btn-cancel" onclick="cancelEdit(${index})" id="cancel-btn-${index}" style="display: none;">
+                    <span class="btn-icon">❌</span>
+                    Cancel
+                </button>
+                <button type="button" class="btn-delete" onclick="deletePrompt(${index})">
+                    <span class="btn-icon">🗑️</span>
+                    Delete
+                </button>
+            </div>
+        </div>
+    `).join('');
+    
+    promptsListElement.innerHTML = promptsHTML;
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function addPrompts() {
+    const input = document.getElementById('prompts-input');
+    const inputValue = input.value.trim();
+    
+    if (!inputValue) {
+        alert('Please enter some prompts first.');
+        return;
+    }
+    
+    let newPrompts = [];
+    
+    try {
+        // Try to parse as JSON first
+        const parsed = JSON.parse(inputValue);
+        if (Array.isArray(parsed)) {
+            newPrompts = parsed.filter(p => typeof p === 'string' && p.trim());
+        } else {
+            throw new Error('Not an array');
+        }
+    } catch (e) {
+        // If JSON parsing fails, treat as line-separated prompts
+        newPrompts = inputValue.split('\n')
+            .map(line => line.trim())
+            .filter(line => line.length > 0);
+    }
+    
+    if (newPrompts.length === 0) {
+        alert('No valid prompts found. Please check your input format.');
+        return;
+    }
+    
+    // Add new prompts to the list
+    promptsList.push(...newPrompts);
+    
+    // Clear input
+    input.value = '';
+    
+    // Update display
+    updatePromptsDisplay();
+    
+    // Show success message
+    const addedCount = newPrompts.length;
+    const message = `Added ${addedCount} prompt${addedCount > 1 ? 's' : ''} successfully!`;
+    showMessage(message, 'success');
+}
+
+function editPrompt(index) {
+    const textElement = document.getElementById(`prompt-text-${index}`);
+    const editElement = document.getElementById(`prompt-edit-${index}`);
+    const editBtn = document.getElementById(`edit-btn-${index}`);
+    const saveBtn = document.getElementById(`save-btn-${index}`);
+    const cancelBtn = document.getElementById(`cancel-btn-${index}`);
+    
+    textElement.style.display = 'none';
+    editElement.style.display = 'block';
+    editBtn.style.display = 'none';
+    saveBtn.style.display = 'inline-flex';
+    cancelBtn.style.display = 'inline-flex';
+    
+    editElement.focus();
+}
+
+function savePrompt(index) {
+    const editElement = document.getElementById(`prompt-edit-${index}`);
+    const newValue = editElement.value.trim();
+    
+    if (!newValue) {
+        alert('Prompt cannot be empty.');
+        return;
+    }
+    
+    promptsList[index] = newValue;
+    updatePromptsDisplay();
+    showMessage('Prompt updated successfully!', 'success');
+}
+
+function cancelEdit(index) {
+    const textElement = document.getElementById(`prompt-text-${index}`);
+    const editElement = document.getElementById(`prompt-edit-${index}`);
+    const editBtn = document.getElementById(`edit-btn-${index}`);
+    const saveBtn = document.getElementById(`save-btn-${index}`);
+    const cancelBtn = document.getElementById(`cancel-btn-${index}`);
+    
+    // Reset textarea value
+    editElement.value = promptsList[index];
+    
+    textElement.style.display = 'block';
+    editElement.style.display = 'none';
+    editBtn.style.display = 'inline-flex';
+    saveBtn.style.display = 'none';
+    cancelBtn.style.display = 'none';
+}
+
+function deletePrompt(index) {
+    if (confirm('Are you sure you want to delete this prompt?')) {
+        promptsList.splice(index, 1);
+        updatePromptsDisplay();
+        showMessage('Prompt deleted successfully!', 'success');
+    }
+}
+
+function showMessage(text, type) {
+    // Remove existing messages
+    const existingMessage = document.querySelector('.temp-message');
+    if (existingMessage) {
+        existingMessage.remove();
+    }
+    
+    const message = document.createElement('div');
+    message.className = `temp-message ${type}`;
+    message.textContent = text;
+    
+    const addBtn = document.getElementById('add-prompts-btn');
+    addBtn.parentNode.insertBefore(message, addBtn.nextSibling);
+    
+    setTimeout(() => {
+        message.remove();
+    }, 3000);
+}
+
+// Event listeners
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('add-prompts-btn').addEventListener('click', addPrompts);
+    
+    // Handle Enter key in textarea
+    document.getElementById('prompts-input').addEventListener('keydown', function(e) {
+        if (e.ctrlKey && e.key === 'Enter') {
+            addPrompts();
+        }
+    });
+    
+    // Form validation
+    document.querySelector('.bulk-form').addEventListener('submit', function(e) {
+        if (promptsList.length === 0) {
+            e.preventDefault();
+            alert('Please add at least one prompt before generating images.');
+            return false;
+        }
+    });
+    
+    // Initialize display
+    updatePromptsDisplay();
+});
+</script>
 
 <style>
 .form-description {
@@ -157,6 +385,192 @@
 
 .btn-icon {
     font-size: 1.3rem;
+}
+
+/* Prompt Management Styles */
+.btn-add-prompts {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    background: linear-gradient(135deg, #42b883 0%, #369870 100%);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 0.75rem;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(66, 184, 131, 0.3);
+}
+
+.btn-add-prompts:hover {
+    background: linear-gradient(135deg, #369870 0%, #2d7a5f 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(66, 184, 131, 0.4);
+}
+
+.prompt-count {
+    color: #606770;
+    font-weight: normal;
+    font-size: 0.9rem;
+}
+
+.prompts-list {
+    border: 2px solid #dddfe2;
+    border-radius: 8px;
+    min-height: 200px;
+    max-height: 400px;
+    overflow-y: auto;
+    background-color: #fafbfc;
+}
+
+.empty-state {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 200px;
+    color: #606770;
+    font-style: italic;
+}
+
+.prompt-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1rem;
+    border-bottom: 1px solid #e4e6ea;
+    background-color: white;
+    transition: background-color 0.2s ease;
+}
+
+.prompt-item:hover {
+    background-color: #f8f9fa;
+}
+
+.prompt-item:last-child {
+    border-bottom: none;
+}
+
+.prompt-number {
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #1877f2 0%, #166fe5 100%);
+    color: white;
+    border-radius: 50%;
+    font-weight: bold;
+    font-size: 0.9rem;
+}
+
+.prompt-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.prompt-text {
+    margin: 0;
+    padding: 0.5rem 0;
+    line-height: 1.5;
+    word-wrap: break-word;
+    color: #1c1e21;
+}
+
+.prompt-edit {
+    width: 100%;
+    min-height: 60px;
+    padding: 0.5rem;
+    border: 2px solid #1877f2;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 1rem;
+    line-height: 1.5;
+    resize: vertical;
+}
+
+.prompt-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+}
+
+.prompt-actions button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.5rem 0.75rem;
+    border: none;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-edit {
+    background-color: #1877f2;
+    color: white;
+}
+
+.btn-edit:hover {
+    background-color: #166fe5;
+}
+
+.btn-save {
+    background-color: #42b883;
+    color: white;
+}
+
+.btn-save:hover {
+    background-color: #369870;
+}
+
+.btn-cancel {
+    background-color: #6c757d;
+    color: white;
+}
+
+.btn-cancel:hover {
+    background-color: #5a6268;
+}
+
+.btn-delete {
+    background-color: #fa383e;
+    color: white;
+}
+
+.btn-delete:hover {
+    background-color: #e31e24;
+}
+
+.temp-message {
+    padding: 0.75rem 1rem;
+    border-radius: 6px;
+    margin-top: 0.75rem;
+    font-weight: 500;
+    animation: slideIn 0.3s ease;
+}
+
+.temp-message.success {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .error {

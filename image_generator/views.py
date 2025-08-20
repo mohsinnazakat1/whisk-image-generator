@@ -138,11 +138,29 @@ def bulk_image_generator(request):
 
 def bulk_status(request, bulk_request_id):
     bulk_request = BulkImageRequest.objects.get(id=bulk_request_id)
-    return render(request, 'image_generator/bulk_status.html', {'bulk_request': bulk_request})
+    # Get prompts in the correct order (by ID, which represents creation order)
+    ordered_prompts = bulk_request.prompts.all().order_by('id')
+    return render(request, 'image_generator/bulk_status.html', {
+        'bulk_request': bulk_request,
+        'ordered_prompts': ordered_prompts
+    })
 
 def get_bulk_status(request, bulk_request_id):
     bulk_request = BulkImageRequest.objects.get(id=bulk_request_id)
-    prompts = bulk_request.prompts.all().values('id', 'prompt_text', 'status', 'generated_image')
+    
+    # Get prompts in the correct order (by ID, which represents creation order)
+    ordered_prompts = bulk_request.prompts.all().order_by('id')
+    
+    # Add sequential numbering to each prompt
+    prompts_with_numbers = []
+    for index, prompt in enumerate(ordered_prompts, 1):
+        prompts_with_numbers.append({
+            'id': prompt.id,
+            'prompt_text': prompt.prompt_text,
+            'status': prompt.status,
+            'generated_image': prompt.generated_image,
+            'sequence_number': index
+        })
     
     # Calculate status counts
     status_counts = bulk_request.prompts.aggregate(
@@ -155,30 +173,75 @@ def get_bulk_status(request, bulk_request_id):
     
     return JsonResponse({
         'status': bulk_request.get_status_display(),
-        'prompts': list(prompts),
+        'prompts': prompts_with_numbers,
         'counts': status_counts
     })
 
 def download_all_images(request, bulk_request_id):
-    """Download all generated images as a ZIP file"""
+    """Download all generated images as a ZIP file with summary"""
     bulk_request = get_object_or_404(BulkImageRequest, id=bulk_request_id)
     
     # Create a BytesIO buffer to store the ZIP file
     buffer = io.BytesIO()
     
-    # Get completed prompts in the order they were created (same order as input array)
-    completed_prompts = bulk_request.prompts.filter(status='completed').order_by('id')
+    # Get all prompts in the order they were created
+    all_prompts = bulk_request.prompts.all().order_by('id')
+    completed_prompts = all_prompts.filter(status='completed')
+    failed_prompts = all_prompts.filter(status='failed')
+    
+    # Calculate statistics
+    total_count = all_prompts.count()
+    completed_count = completed_prompts.count()
+    failed_count = failed_prompts.count()
+    processing_count = all_prompts.filter(status='processing').count()
+    pending_count = all_prompts.filter(status='pending').count()
+    
+    # Create summary text content
+    summary_content = f"""BULK IMAGE GENERATION SUMMARY
+=====================================
+
+Project Title: {bulk_request.title}
+Generated on: {bulk_request.created_at.strftime('%Y-%m-%d %H:%M:%S')}
+
+STATISTICS:
+-----------
+Total Images: {total_count}
+Completed: {completed_count}
+Failed: {failed_count}
+Processing: {processing_count}
+Pending: {pending_count}
+
+SUCCESS RATE: {(completed_count/total_count*100):.1f}%
+
+"""
+    
+    if failed_count > 0:
+        summary_content += "\nFAILED IMAGES:\n"
+        summary_content += "-" * 50 + "\n"
+        for index, prompt in enumerate(all_prompts, 1):
+            if prompt.status == 'failed':
+                summary_content += f"#{index:03d}: {prompt.prompt_text}\n"
+    
+    if completed_count > 0:
+        summary_content += f"\nSUCCESSFUL IMAGES ({completed_count} files):\n"
+        summary_content += "-" * 50 + "\n"
+        for index, prompt in enumerate(all_prompts, 1):
+            if prompt.status == 'completed':
+                summary_content += f"#{index:03d}: {prompt.prompt_text}\n"
     
     with zipfile.ZipFile(buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
-        for index, prompt in enumerate(completed_prompts, 1):
-            if prompt.generated_image:
+        # Add summary text file
+        zip_file.writestr('SUMMARY.txt', summary_content.encode('utf-8'))
+        
+        # Add completed images
+        for index, prompt in enumerate(all_prompts, 1):
+            if prompt.status == 'completed' and prompt.generated_image:
                 # Extract the base64 data from the data URL
                 match = re.match(r'data:image/(\w+);base64,(.+)', prompt.generated_image)
                 if match:
                     image_format, image_data = match.groups()
                     
-                    # Create filename with sequence number and bulk title
-                    # Format: 001_{bulk_title}, 002_{bulk_title}, etc.
+                    # Create filename with sequence number matching the prompt order
                     sanitized_title = re.sub(r'[^\w\s-]', '', bulk_request.title)
                     sanitized_title = re.sub(r'[-\s]+', '_', sanitized_title).strip('_')
                     filename = f"{index:03d}_{sanitized_title}.{image_format}"

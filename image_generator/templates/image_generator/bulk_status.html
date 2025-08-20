@@ -40,14 +40,20 @@
     </div>
 
     <div id="prompt-grid" class="image-grid">
-        {% for prompt in bulk_request.prompts.all %}
-            <div class="image-card" id="prompt-{{ prompt.id }}">
+        {% for prompt in ordered_prompts %}
+            <div class="image-card" id="prompt-{{ prompt.id }}" data-prompt-number="{{ forloop.counter }}">
+                <div class="card-header">
+                    <div class="prompt-number">#{{ forloop.counter }}</div>
+                    <div class="status-indicator" data-status="{{ prompt.status }}">
+                        <span class="status-icon"></span>
+                        <span class="status-text">{{ prompt.get_status_display }}</span>
+                    </div>
+                </div>
                 <div class="image-placeholder">
                     <div class="spinner"></div>
                 </div>
                 <div class="prompt-details">
-                    <p>{{ prompt.prompt_text }}</p>
-                    <p>Status: <span class="status">{{ prompt.get_status_display }}</span></p>
+                    <p class="prompt-text">{{ prompt.prompt_text }}</p>
                     <button class="btn retry-btn" onclick="retryPrompt({{ prompt.id }})" style="display: none;">Retry</button>
                 </div>
             </div>
@@ -82,13 +88,17 @@ function retryPrompt(promptId) {
     }).then(response => {
         if (response.ok) {
             const promptCard = document.getElementById(`prompt-${promptId}`);
-            const statusSpan = promptCard.querySelector('.status');
+            const statusIndicator = promptCard.querySelector('.status-indicator');
+            const statusText = promptCard.querySelector('.status-text');
             const retryBtn = promptCard.querySelector('.retry-btn');
-            statusSpan.textContent = 'pending';
+            
+            statusIndicator.setAttribute('data-status', 'pending');
+            statusText.textContent = 'Pending';
             retryBtn.style.display = 'none';
+            
             const placeholder = promptCard.querySelector('.image-placeholder');
             if (placeholder) {
-                placeholder.innerHTML = '<div class="spinner"></div>';
+                placeholder.innerHTML = '<div class="processing-message"><div class="spinner"></div><p>Queued for retry...</p></div>';
             }
         } else {
             alert('Failed to retry the image. Please try again.');
@@ -136,16 +146,27 @@ document.addEventListener('DOMContentLoaded', () => {
                 let hasFailedPrompts = false;
                 data.prompts.forEach(prompt => {
                     const promptCard = document.getElementById(`prompt-${prompt.id}`);
-                    const statusSpan = promptCard.querySelector('.status');
+                    const statusIndicator = promptCard.querySelector('.status-indicator');
+                    const statusText = promptCard.querySelector('.status-text');
                     const retryBtn = promptCard.querySelector('.retry-btn');
-                    statusSpan.textContent = prompt.status;
+                    const promptNumber = promptCard.querySelector('.prompt-number');
+                    
+                    // Update the prompt number to match the correct sequence
+                    if (prompt.sequence_number && promptNumber) {
+                        promptNumber.textContent = `#${prompt.sequence_number}`;
+                        promptCard.setAttribute('data-prompt-number', prompt.sequence_number);
+                    }
+                    
+                    // Update status indicator
+                    statusIndicator.setAttribute('data-status', prompt.status);
+                    statusText.textContent = prompt.status.charAt(0).toUpperCase() + prompt.status.slice(1);
 
                     if (prompt.status === 'failed') {
                         hasFailedPrompts = true;
                         retryBtn.style.display = 'block';
                         const placeholder = promptCard.querySelector('.image-placeholder');
                         if (placeholder) {
-                            placeholder.innerHTML = '<p class="error-text">Failed</p>';
+                            placeholder.innerHTML = '<div class="error-message"><span class="error-icon">❌</span><p class="error-text">Generation Failed</p></div>';
                         }
                     } else if (prompt.status === 'completed' && prompt.generated_image) {
                         retryBtn.style.display = 'none';
@@ -155,6 +176,12 @@ document.addEventListener('DOMContentLoaded', () => {
                             img.src = prompt.generated_image;
                             placeholder.innerHTML = '';
                             placeholder.appendChild(img);
+                        }
+                    } else if (prompt.status === 'processing') {
+                        retryBtn.style.display = 'none';
+                        const placeholder = promptCard.querySelector('.image-placeholder');
+                        if (placeholder && !placeholder.querySelector('img')) {
+                            placeholder.innerHTML = '<div class="processing-message"><div class="spinner"></div><p>Generating...</p></div>';
                         }
                     } else {
                         retryBtn.style.display = 'none';
@@ -270,6 +297,17 @@ document.addEventListener('DOMContentLoaded', () => {
 .prompt-details {
     padding: 1rem;
 }
+
+.prompt-text {
+    margin: 0 0 0.5rem 0;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    color: #495057;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
 .error-text {
     color: #dc3545;
     font-weight: bold;
@@ -327,9 +365,99 @@ document.addEventListener('DOMContentLoaded', () => {
 }
 .image-card {
     border: 1px solid #dee2e6;
-    border-radius: 4px;
+    border-radius: 8px;
     overflow: hidden;
     margin-bottom: 1rem;
+    background: white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.prompt-number {
+    font-weight: bold;
+    font-size: 1.1rem;
+    color: #495057;
+}
+
+.status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.status-indicator[data-status="completed"] {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.status-indicator[data-status="failed"] {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.status-indicator[data-status="processing"] {
+    background-color: #d1ecf1;
+    color: #0c5460;
+    border: 1px solid #bee5eb;
+}
+
+.status-indicator[data-status="pending"] {
+    background-color: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeaa7;
+}
+
+.status-icon::before {
+    font-size: 1rem;
+}
+
+.status-indicator[data-status="completed"] .status-icon::before {
+    content: "✅";
+}
+
+.status-indicator[data-status="failed"] .status-icon::before {
+    content: "❌";
+}
+
+.status-indicator[data-status="processing"] .status-icon::before {
+    content: "⚡";
+}
+
+.status-indicator[data-status="pending"] .status-icon::before {
+    content: "⏳";
+}
+
+.error-message, .processing-message {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    gap: 0.5rem;
+}
+
+.error-icon {
+    font-size: 2rem;
+}
+
+.processing-message p {
+    margin: 0;
+    color: #6c757d;
+    font-size: 0.9rem;
 }
 .image-grid {
     display: grid;
