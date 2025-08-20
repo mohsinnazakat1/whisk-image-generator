@@ -3,16 +3,188 @@
 {% block content %}
 <div class="container">
     <h1>Bulk Image Generator</h1>
-    <p>Enter a JSON array of strings, where each string is a prompt.</p>
+    <p class="form-description">Enter a title for your bulk generation and a JSON array of strings, where each string is a prompt.</p>
     
-    <form action="{% url 'bulk_image_generator' %}" method="post" class="prompt-form">
+    {% if error %}
+        <div class="error">{{ error }}</div>
+    {% endif %}
+    
+    <form action="{% url 'bulk_image_generator' %}" method="post" class="bulk-form">
         {% csrf_token %}
-        <textarea name="prompts" rows="10" placeholder='[
-    "A futuristic city with flying cars",
-    "A serene forest with a hidden waterfall",
-    "A steampunk-inspired robot reading a book"
-]' required></textarea>
-        <button type="submit">Generate Images</button>
+        
+        <div class="form-group">
+            <label for="title" class="form-label">
+                <span class="label-text">Bulk Generation Title</span>
+                <span class="label-required">*</span>
+            </label>
+            <input type="text" 
+                   id="title" 
+                   name="title" 
+                   class="form-control title-input" 
+                   placeholder="e.g., Fantasy Landscapes, Product Mockups, Character Designs..." 
+                   value="{{ title|default:'' }}" 
+                   required>
+            <div class="form-help">This will be used to name your downloaded files (001_YourTitle, 002_YourTitle, etc.)</div>
+        </div>
+        
+        <div class="form-group">
+            <label for="prompts" class="form-label">
+                <span class="label-text">Image Prompts</span>
+                <span class="label-required">*</span>
+            </label>
+            <textarea id="prompts" 
+                      name="prompts" 
+                      class="form-control prompts-textarea" 
+                      rows="12" 
+                      placeholder='[
+    "A futuristic city with flying cars at sunset",
+    "A serene forest with a hidden waterfall and magical lighting",
+    "A steampunk-inspired robot reading a book in a library",
+    "An underwater palace with coral gardens and tropical fish"
+]' 
+                      required>{{ prompts|default:'' }}</textarea>
+            <div class="form-help">Enter a JSON array where each string is an image prompt. Images will be generated in the same order as listed.</div>
+        </div>
+        
+        <button type="submit" class="btn-generate">
+            <span class="btn-icon">🎨</span>
+            Generate Images
+        </button>
     </form>
 </div>
+
+<style>
+.form-description {
+    text-align: center;
+    color: #606770;
+    font-size: 1.1rem;
+    margin-bottom: 2rem;
+    line-height: 1.5;
+}
+
+.bulk-form {
+    max-width: 100%;
+}
+
+.form-group {
+    margin-bottom: 2rem;
+}
+
+.form-label {
+    display: block;
+    margin-bottom: 0.75rem;
+    font-weight: 600;
+    color: #1c1e21;
+    font-size: 1.1rem;
+}
+
+.label-text {
+    margin-right: 0.25rem;
+}
+
+.label-required {
+    color: #fa383e;
+    font-weight: bold;
+}
+
+.form-control {
+    width: 100%;
+    padding: 1rem;
+    border: 2px solid #dddfe2;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-family: inherit;
+    box-sizing: border-box;
+    transition: all 0.3s ease;
+    background-color: #fff;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: #1877f2;
+    box-shadow: 0 0 0 3px rgba(24, 119, 242, 0.1);
+    background-color: #fafbfc;
+}
+
+.title-input {
+    font-size: 1.1rem;
+    font-weight: 500;
+}
+
+.prompts-textarea {
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    resize: vertical;
+    min-height: 200px;
+}
+
+.form-help {
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
+    color: #606770;
+    line-height: 1.4;
+}
+
+.btn-generate {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    width: 100%;
+    padding: 1rem 2rem;
+    background: linear-gradient(135deg, #1877f2 0%, #166fe5 100%);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 1.2rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(24, 119, 242, 0.3);
+}
+
+.btn-generate:hover {
+    background: linear-gradient(135deg, #166fe5 0%, #1464d8 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(24, 119, 242, 0.4);
+}
+
+.btn-generate:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(24, 119, 242, 0.3);
+}
+
+.btn-icon {
+    font-size: 1.3rem;
+}
+
+.error {
+    background-color: #ffebe6;
+    border: 2px solid #fa383e;
+    color: #721c24;
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 2rem;
+    font-weight: 500;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .container {
+        padding: 1rem;
+        margin: 1rem auto;
+    }
+    
+    .form-control {
+        padding: 0.875rem;
+        font-size: 1rem;
+    }
+    
+    .btn-generate {
+        padding: 0.875rem 1.5rem;
+        font-size: 1.1rem;
+    }
+}
+</style>
 {% endblock %}

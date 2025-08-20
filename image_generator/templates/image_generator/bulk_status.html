@@ -3,7 +3,7 @@
 
 {% block content %}
 <div class="container">
-    <h1>Bulk Generation Status</h1>
+    <h1>{{ bulk_request.title }}</h1>
     <div class="status-header">
         <div class="status-info">
             <p><strong>Status:</strong> <span id="bulk-status">{{ bulk_request.get_status_display }}</span></p>

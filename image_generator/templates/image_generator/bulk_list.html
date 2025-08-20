@@ -8,7 +8,7 @@
         {% for request in bulk_requests %}
         <div class="bulk-request-card" data-request-id="{{ request.id }}">
             <div class="request-header">
-                <h3>Bulk Request #{{ request.id }}</h3>
+                <h3>{{ request.title }}</h3>
                 <span class="status {{ request.status }}">{{ request.get_status_display }}</span>
                 <span class="timestamp">Created: {{ request.created_at|date:"M d, Y H:i" }}</span>
             </div>

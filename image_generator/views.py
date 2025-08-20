@@ -97,15 +97,27 @@ def delete_bulk_request(request, request_id):
 
 def bulk_image_generator(request):
     if request.method == 'POST':
+        title = request.POST.get('title', '').strip()
         prompts_str = request.POST.get('prompts', '')
+        
+        if not title:
+            return render(request, 'image_generator/bulk_generator.html', {
+                'error': 'Title is required for bulk generation.',
+                'prompts': prompts_str
+            })
+        
         try:
             prompts = json.loads(prompts_str)
             if not isinstance(prompts, list):
                 raise ValueError("Input must be a JSON array of strings.")
         except (json.JSONDecodeError, ValueError) as e:
-            return JsonResponse({'error': str(e)}, status=400)
+            return render(request, 'image_generator/bulk_generator.html', {
+                'error': str(e),
+                'title': title,
+                'prompts': prompts_str
+            })
 
-        bulk_request = BulkImageRequest.objects.create(status='processing')
+        bulk_request = BulkImageRequest.objects.create(title=title, status='processing')
         for prompt_text in prompts:
             image_prompt = ImagePrompt.objects.create(
                 bulk_request=bulk_request,
@@ -143,18 +155,22 @@ def download_all_images(request, bulk_request_id):
     # Create a BytesIO buffer to store the ZIP file
     buffer = io.BytesIO()
     
+    # Get completed prompts in the order they were created (same order as input array)
+    completed_prompts = bulk_request.prompts.filter(status='completed').order_by('id')
+    
     with zipfile.ZipFile(buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
-        for prompt in bulk_request.prompts.filter(status='completed'):
+        for index, prompt in enumerate(completed_prompts, 1):
             if prompt.generated_image:
                 # Extract the base64 data from the data URL
                 match = re.match(r'data:image/(\w+);base64,(.+)', prompt.generated_image)
                 if match:
                     image_format, image_data = match.groups()
                     
-                    # Create a sanitized filename from the prompt text
-                    filename = re.sub(r'[^\w\s-]', '', prompt.prompt_text)
-                    filename = re.sub(r'[-\s]+', '-', filename).strip('-')
-                    filename = f"{filename[:50]}.{image_format}"  # Limit filename length
+                    # Create filename with sequence number and bulk title
+                    # Format: 001_{bulk_title}, 002_{bulk_title}, etc.
+                    sanitized_title = re.sub(r'[^\w\s-]', '', bulk_request.title)
+                    sanitized_title = re.sub(r'[-\s]+', '_', sanitized_title).strip('_')
+                    filename = f"{index:03d}_{sanitized_title}.{image_format}"
                     
                     # Decode base64 and write to zip
                     try:
@@ -163,10 +179,12 @@ def download_all_images(request, bulk_request_id):
                     except Exception as e:
                         logger.error(f"Error processing image for prompt {prompt.id}: {str(e)}")
     
-    # Prepare the response
+    # Prepare the response with bulk title in zip filename
     buffer.seek(0)
+    sanitized_title = re.sub(r'[^\w\s-]', '', bulk_request.title)
+    sanitized_title = re.sub(r'[-\s]+', '_', sanitized_title).strip('_')
     response = HttpResponse(buffer.getvalue(), content_type='application/zip')
-    response['Content-Disposition'] = f'attachment; filename=bulk_request_{bulk_request_id}_images.zip'
+    response['Content-Disposition'] = f'attachment; filename={sanitized_title}_images.zip'
     
     return response
 
