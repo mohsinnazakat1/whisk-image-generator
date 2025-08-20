@@ -143,9 +143,20 @@ def bulk_status(request, bulk_request_id):
 def get_bulk_status(request, bulk_request_id):
     bulk_request = BulkImageRequest.objects.get(id=bulk_request_id)
     prompts = bulk_request.prompts.all().values('id', 'prompt_text', 'status', 'generated_image')
+    
+    # Calculate status counts
+    status_counts = bulk_request.prompts.aggregate(
+        total=Count('id'),
+        completed=Count('id', filter=Q(status='completed')),
+        failed=Count('id', filter=Q(status='failed')),
+        processing=Count('id', filter=Q(status='processing')),
+        pending=Count('id', filter=Q(status='pending'))
+    )
+    
     return JsonResponse({
         'status': bulk_request.get_status_display(),
-        'prompts': list(prompts)
+        'prompts': list(prompts),
+        'counts': status_counts
     })
 
 def download_all_images(request, bulk_request_id):

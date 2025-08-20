@@ -4,9 +4,34 @@
 {% block content %}
 <div class="container">
     <h1>{{ bulk_request.title }}</h1>
+    
+    <!-- Real-time Status Summary -->
+    <div class="status-summary">
+        <div class="status-card completed">
+            <div class="status-number" id="completed-count">0</div>
+            <div class="status-label">Completed</div>
+        </div>
+        <div class="status-card failed">
+            <div class="status-number" id="failed-count">0</div>
+            <div class="status-label">Failed</div>
+        </div>
+        <div class="status-card processing">
+            <div class="status-number" id="processing-count">0</div>
+            <div class="status-label">Processing</div>
+        </div>
+        <div class="status-card pending">
+            <div class="status-number" id="pending-count">0</div>
+            <div class="status-label">Pending</div>
+        </div>
+        <div class="status-card total">
+            <div class="status-number" id="total-count">0</div>
+            <div class="status-label">Total</div>
+        </div>
+    </div>
+
     <div class="status-header">
         <div class="status-info">
-            <p><strong>Status:</strong> <span id="bulk-status">{{ bulk_request.get_status_display }}</span></p>
+            <p><strong>Overall Status:</strong> <span id="bulk-status">{{ bulk_request.get_status_display }}</span></p>
         </div>
         <div class="action-buttons">
             <button id="retry-all-btn" class="btn retry-all" onclick="retryAllFailed()" style="display: none;">Retry All Failed</button>
@@ -99,6 +124,15 @@ document.addEventListener('DOMContentLoaded', () => {
             .then(data => {
                 statusElement.textContent = data.status;
                 
+                // Update status counts
+                if (data.counts) {
+                    document.getElementById('completed-count').textContent = data.counts.completed || 0;
+                    document.getElementById('failed-count').textContent = data.counts.failed || 0;
+                    document.getElementById('processing-count').textContent = data.counts.processing || 0;
+                    document.getElementById('pending-count').textContent = data.counts.pending || 0;
+                    document.getElementById('total-count').textContent = data.counts.total || 0;
+                }
+                
                 let hasFailedPrompts = false;
                 data.prompts.forEach(prompt => {
                     const promptCard = document.getElementById(`prompt-${prompt.id}`);
@@ -130,7 +164,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 retryAllBtn.style.display = hasFailedPrompts ? 'block' : 'none';
 
                 if (data.status !== 'Completed' && data.status !== 'Failed') {
-                    setTimeout(updateStatus, 5000); // Poll every 5 seconds
+                    setTimeout(updateStatus, 3000); // Poll every 3 seconds for more responsive updates
                 }
             });
     }
@@ -140,6 +174,79 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 
 <style>
+/* Status Summary Cards */
+.status-summary {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+}
+
+.status-card {
+    background: white;
+    border-radius: 8px;
+    padding: 1.5rem;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border-left: 4px solid;
+    min-width: 120px;
+    flex: 1;
+}
+
+.status-card.completed {
+    border-left-color: #28a745;
+}
+
+.status-card.failed {
+    border-left-color: #dc3545;
+}
+
+.status-card.processing {
+    border-left-color: #007bff;
+}
+
+.status-card.pending {
+    border-left-color: #ffc107;
+}
+
+.status-card.total {
+    border-left-color: #6c757d;
+}
+
+.status-number {
+    font-size: 2rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+}
+
+.status-card.completed .status-number {
+    color: #28a745;
+}
+
+.status-card.failed .status-number {
+    color: #dc3545;
+}
+
+.status-card.processing .status-number {
+    color: #007bff;
+}
+
+.status-card.pending .status-number {
+    color: #ffc107;
+}
+
+.status-card.total .status-number {
+    color: #6c757d;
+}
+
+.status-label {
+    font-size: 0.9rem;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Existing styles */
 .image-placeholder {
     width: 100%;
     height: 200px;
@@ -229,6 +336,17 @@ document.addEventListener('DOMContentLoaded', () => {
     grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
     gap: 1rem;
     padding: 1rem 0;
+}
+
+/* Responsive design for status cards */
+@media (max-width: 768px) {
+    .status-summary {
+        flex-direction: column;
+    }
+    
+    .status-card {
+        min-width: auto;
+    }
 }
 </style>
 {% endblock %}
