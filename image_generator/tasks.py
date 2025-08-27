@@ -59,3 +59,11 @@ def generate_image_task(self, prompt_id):
     
     finally:
         image_prompt.save()
+        
+        # Check if all prompts in the bulk request are completed
+        bulk_request = image_prompt.bulk_request
+        all_prompts = bulk_request.prompts.all()
+        if all(p.status in ['completed', 'failed'] for p in all_prompts):
+            bulk_request.status = 'completed'
+            bulk_request.save()
+            logger.info(f"Bulk request {bulk_request.id} marked as completed")

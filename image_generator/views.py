@@ -292,6 +292,45 @@ def retry_all_failed(request, bulk_request_id):
         logger.error(f"Error retrying failed prompts for bulk request {bulk_request_id}: {str(e)}")
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
+@require_http_methods(["POST"])
+def mark_prompt_completed(request, prompt_id):
+    """Manually mark a prompt as completed (for stuck processing tasks)"""
+    try:
+        prompt = get_object_or_404(ImagePrompt, id=prompt_id)
+        if prompt.status == 'processing':
+            prompt.status = 'completed'
+            prompt.save()
+            return JsonResponse({'status': 'success'})
+        return JsonResponse({'status': 'error', 'message': 'Only processing prompts can be marked as completed'}, status=400)
+    except Exception as e:
+        logger.error(f"Error marking prompt {prompt_id} as completed: {str(e)}")
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+@require_http_methods(["POST"])
+def reset_stuck_prompts(request, bulk_request_id):
+    """Reset all stuck processing prompts in a bulk request"""
+    try:
+        bulk_request = get_object_or_404(BulkImageRequest, id=bulk_request_id)
+        from datetime import timedelta
+        from django.utils import timezone
+        
+        # Find prompts stuck in processing for more than 5 minutes
+        cutoff_time = timezone.now() - timedelta(minutes=5)
+        stuck_prompts = bulk_request.prompts.filter(
+            status='processing',
+            updated_at__lt=cutoff_time
+        )
+        
+        for prompt in stuck_prompts:
+            prompt.status = 'pending'
+            prompt.save()
+            generate_image_task.delay(prompt.id)
+            
+        return JsonResponse({'status': 'success', 'reset_count': stuck_prompts.count()})
+    except Exception as e:
+        logger.error(f"Error resetting stuck prompts for bulk request {bulk_request_id}: {str(e)}")
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
 def whisk_settings(request):
     """View to display and update Whisk API settings"""
     settings_obj = WhiskSettings.get_settings()

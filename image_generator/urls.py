@@ -12,6 +12,8 @@ urlpatterns = [
     path('api/prompt/<int:prompt_id>/retry/', views.retry_failed_prompt, name='retry_failed_prompt'),
     path('api/bulk/<int:bulk_request_id>/retry-failed/', views.retry_all_failed, name='retry_all_failed'),
     path('api/bulk/<int:bulk_request_id>/download/', views.download_all_images, name='download_all_images'),
+    path('api/prompt/<int:prompt_id>/mark-completed/', views.mark_prompt_completed, name='mark_prompt_completed'),
+    path('api/bulk/<int:bulk_request_id>/reset-stuck/', views.reset_stuck_prompts, name='reset_stuck_prompts'),
     path('settings/', views.whisk_settings, name='whisk_settings'),
     path('settings/view/', views.settings_view, name='settings_view'),
 ]
