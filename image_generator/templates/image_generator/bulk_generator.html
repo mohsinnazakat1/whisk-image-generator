@@ -108,7 +108,31 @@ A serene forest with a hidden waterfall'></textarea>
                 <span class="label-text">Prompt List</span>
                 <span class="label-required">*</span>
                 <span class="prompt-count">(0 prompts)</span>
+                <span class="duplicate-count" style="display: none;"></span>
             </label>
+            
+            <!-- Duplicate Detection Alert -->
+            <div id="duplicate-alert" class="duplicate-alert" style="display: none;">
+                <div class="alert-content">
+                    <div class="alert-icon">⚠️</div>
+                    <div class="alert-text">
+                        <strong>Duplicate prompts detected!</strong>
+                        <span id="duplicate-summary"></span>
+                    </div>
+                    <div class="alert-actions">
+                        <button type="button" id="view-duplicates-btn" class="btn-view-duplicates">
+                            View Duplicates
+                        </button>
+                        <button type="button" id="remove-duplicates-btn" class="btn-remove-duplicates">
+                            Remove Duplicates
+                        </button>
+                        <button type="button" id="keep-duplicates-btn" class="btn-keep-duplicates">
+                            Keep All
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
             <div id="prompts-list" class="prompts-list">
                 <div class="empty-state">
                     <p>No prompts added yet. Add some prompts above to get started!</p>
@@ -126,8 +150,77 @@ A serene forest with a hidden waterfall'></textarea>
     </form>
 </div>
 
+<!-- Duplicates Modal -->
+<div id="duplicates-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Duplicate Prompts</h2>
+            <span class="modal-close" onclick="closeModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div id="duplicates-content"></div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn-modal-close" onclick="closeModal()">Close</button>
+        </div>
+    </div>
+</div>
+
 <script>
 let promptsList = [];
+let duplicateGroups = {};
+
+function detectDuplicates() {
+    duplicateGroups = {};
+    const promptCounts = {};
+    
+    console.log('Detecting duplicates for prompts:', promptsList);
+    
+    // Count occurrences of each prompt
+    promptsList.forEach((prompt, index) => {
+        const normalizedPrompt = prompt.toLowerCase().trim();
+        console.log(`Prompt ${index}: "${prompt}" -> normalized: "${normalizedPrompt}"`);
+        if (!promptCounts[normalizedPrompt]) {
+            promptCounts[normalizedPrompt] = [];
+        }
+        promptCounts[normalizedPrompt].push(index);
+    });
+    
+    console.log('Prompt counts:', promptCounts);
+    
+    // Find duplicates
+    Object.keys(promptCounts).forEach(prompt => {
+        if (promptCounts[prompt].length > 1) {
+            duplicateGroups[prompt] = promptCounts[prompt];
+            console.log(`Found duplicate: "${prompt}" at positions:`, promptCounts[prompt]);
+        }
+    });
+    
+    console.log('Final duplicate groups:', duplicateGroups);
+    return Object.keys(duplicateGroups).length > 0;
+}
+
+function updateDuplicateAlert() {
+    const hasDuplicates = detectDuplicates();
+    const duplicateAlert = document.getElementById('duplicate-alert');
+    const duplicateCount = document.querySelector('.duplicate-count');
+    const duplicateSummary = document.getElementById('duplicate-summary');
+    
+    if (hasDuplicates) {
+        const duplicateGroupCount = Object.keys(duplicateGroups).length;
+        const totalDuplicates = Object.values(duplicateGroups).reduce((sum, indices) => sum + indices.length - 1, 0);
+        
+        duplicateAlert.style.display = 'block';
+        duplicateCount.style.display = 'inline';
+        duplicateCount.textContent = `(${totalDuplicates} duplicates found)`;
+        duplicateCount.className = 'duplicate-count warning';
+        
+        duplicateSummary.textContent = `Found ${duplicateGroupCount} unique prompt${duplicateGroupCount > 1 ? 's' : ''} with ${totalDuplicates} duplicate${totalDuplicates > 1 ? 's' : ''}.`;
+    } else {
+        duplicateAlert.style.display = 'none';
+        duplicateCount.style.display = 'none';
+    }
+}
 
 function updatePromptsDisplay() {
     const promptsListElement = document.getElementById('prompts-list');
@@ -150,12 +243,19 @@ function updatePromptsDisplay() {
     }
     
     // Generate prompt items
-    const promptsHTML = promptsList.map((prompt, index) => `
-        <div class="prompt-item" data-index="${index}">
+    const promptsHTML = promptsList.map((prompt, index) => {
+        const normalizedPrompt = prompt.toLowerCase().trim();
+        const isDuplicate = duplicateGroups[normalizedPrompt] && duplicateGroups[normalizedPrompt].length > 1;
+        const duplicateClass = isDuplicate ? 'duplicate-prompt' : '';
+        const duplicateCount = isDuplicate ? duplicateGroups[normalizedPrompt].length : 0;
+        
+        return `
+        <div class="prompt-item ${duplicateClass}" data-index="${index}">
             <div class="prompt-number">#${index + 1}</div>
             <div class="prompt-content">
                 <div class="prompt-text" id="prompt-text-${index}">${escapeHtml(prompt)}</div>
                 <textarea class="prompt-edit" id="prompt-edit-${index}" style="display: none;">${escapeHtml(prompt)}</textarea>
+                ${isDuplicate ? `<div class="duplicate-badge">Duplicate (${duplicateCount} total)</div>` : ''}
             </div>
             <div class="prompt-actions">
                 <button type="button" class="btn-edit" onclick="editPrompt(${index})" id="edit-btn-${index}">
@@ -176,9 +276,13 @@ function updatePromptsDisplay() {
                 </button>
             </div>
         </div>
-    `).join('');
+        `;
+    }).join('');
     
     promptsListElement.innerHTML = promptsHTML;
+    
+    // Update duplicate alert
+    updateDuplicateAlert();
 }
 
 function escapeHtml(text) {
@@ -224,8 +328,13 @@ function addPrompts() {
     // Clear input
     input.value = '';
     
-    // Update display
+    // Update display (this will trigger duplicate detection)
     updatePromptsDisplay();
+    
+    // Debug: Log duplicate detection results
+    console.log('Prompts list:', promptsList);
+    console.log('Duplicate groups:', duplicateGroups);
+    console.log('Has duplicates:', Object.keys(duplicateGroups).length > 0);
     
     // Show success message
     const addedCount = newPrompts.length;
@@ -288,6 +397,86 @@ function deletePrompt(index) {
     }
 }
 
+function removeDuplicates() {
+    const uniquePrompts = [];
+    const seen = new Set();
+    
+    promptsList.forEach(prompt => {
+        const normalizedPrompt = prompt.toLowerCase().trim();
+        if (!seen.has(normalizedPrompt)) {
+            seen.add(normalizedPrompt);
+            uniquePrompts.push(prompt);
+        }
+    });
+    
+    const removedCount = promptsList.length - uniquePrompts.length;
+    promptsList = uniquePrompts;
+    updatePromptsDisplay();
+    showMessage(`Removed ${removedCount} duplicate prompt${removedCount > 1 ? 's' : ''}!`, 'success');
+}
+
+function viewDuplicates() {
+    const modal = document.getElementById('duplicates-modal');
+    const modalContent = document.getElementById('duplicates-content');
+    
+    let content = '<h3>Duplicate Prompts Found</h3>';
+    
+    Object.keys(duplicateGroups).forEach(normalizedPrompt => {
+        const indices = duplicateGroups[normalizedPrompt];
+        const originalPrompt = promptsList[indices[0]];
+        
+        content += `
+            <div class="duplicate-group">
+                <div class="duplicate-group-header">
+                    <strong>Prompt:</strong> "${escapeHtml(originalPrompt)}"
+                    <span class="duplicate-group-count">(${indices.length} occurrences)</span>
+                </div>
+                <div class="duplicate-group-positions">
+                    <strong>Positions:</strong> ${indices.map(i => `#${i + 1}`).join(', ')}
+                </div>
+                <div class="duplicate-group-actions">
+                    <button type="button" class="btn-keep-one" onclick="keepOnlyFirst('${normalizedPrompt}')">
+                        Keep First Only
+                    </button>
+                    <button type="button" class="btn-remove-all" onclick="removeAllDuplicates('${normalizedPrompt}')">
+                        Remove All
+                    </button>
+                </div>
+            </div>
+        `;
+    });
+    
+    modalContent.innerHTML = content;
+    modal.style.display = 'block';
+}
+
+function keepOnlyFirst(normalizedPrompt) {
+    const indices = duplicateGroups[normalizedPrompt];
+    // Remove from the end to avoid index shifting
+    for (let i = indices.length - 1; i > 0; i--) {
+        promptsList.splice(indices[i], 1);
+    }
+    updatePromptsDisplay();
+    closeModal();
+    showMessage('Kept only the first occurrence of the duplicate prompt!', 'success');
+}
+
+function removeAllDuplicates(normalizedPrompt) {
+    const indices = duplicateGroups[normalizedPrompt];
+    // Remove from the end to avoid index shifting
+    for (let i = indices.length - 1; i >= 0; i--) {
+        promptsList.splice(indices[i], 1);
+    }
+    updatePromptsDisplay();
+    closeModal();
+    showMessage('Removed all occurrences of the duplicate prompt!', 'success');
+}
+
+function closeModal() {
+    const modal = document.getElementById('duplicates-modal');
+    modal.style.display = 'none';
+}
+
 function showMessage(text, type) {
     // Remove existing messages
     const existingMessage = document.querySelector('.temp-message');
@@ -310,6 +499,14 @@ function showMessage(text, type) {
 // Event listeners
 document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('add-prompts-btn').addEventListener('click', addPrompts);
+    
+    // Duplicate handling buttons
+    document.getElementById('view-duplicates-btn').addEventListener('click', viewDuplicates);
+    document.getElementById('remove-duplicates-btn').addEventListener('click', removeDuplicates);
+    document.getElementById('keep-duplicates-btn').addEventListener('click', function() {
+        document.getElementById('duplicate-alert').style.display = 'none';
+        showMessage('Keeping all prompts including duplicates.', 'info');
+    });
     
     // Handle Enter key in textarea
     document.getElementById('prompts-input').addEventListener('keydown', function(e) {
@@ -716,6 +913,275 @@ document.addEventListener('DOMContentLoaded', function() {
     font-weight: 500;
 }
 
+/* Duplicate Detection Styles */
+.duplicate-count {
+    color: #fa383e;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.duplicate-count.warning {
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.7; }
+    100% { opacity: 1; }
+}
+
+.duplicate-alert {
+    background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+    border: 2px solid #ffc107;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 2px 8px rgba(255, 193, 7, 0.2);
+}
+
+.alert-content {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.alert-icon {
+    font-size: 1.5rem;
+    flex-shrink: 0;
+}
+
+.alert-text {
+    flex: 1;
+    min-width: 200px;
+}
+
+.alert-text strong {
+    color: #856404;
+    display: block;
+    margin-bottom: 0.25rem;
+}
+
+.alert-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.btn-view-duplicates,
+.btn-remove-duplicates,
+.btn-keep-duplicates {
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-view-duplicates {
+    background-color: #007bff;
+    color: white;
+}
+
+.btn-view-duplicates:hover {
+    background-color: #0056b3;
+}
+
+.btn-remove-duplicates {
+    background-color: #dc3545;
+    color: white;
+}
+
+.btn-remove-duplicates:hover {
+    background-color: #c82333;
+}
+
+.btn-keep-duplicates {
+    background-color: #28a745;
+    color: white;
+}
+
+.btn-keep-duplicates:hover {
+    background-color: #218838;
+}
+
+.duplicate-prompt {
+    background-color: #fff3cd !important;
+    border-left: 4px solid #ffc107;
+}
+
+.duplicate-prompt:hover {
+    background-color: #ffeaa7 !important;
+}
+
+.duplicate-badge {
+    display: inline-block;
+    background: linear-gradient(135deg, #ffc107 0%, #ffb300 100%);
+    color: #856404;
+    padding: 0.25rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin-top: 0.5rem;
+    box-shadow: 0 1px 3px rgba(255, 193, 7, 0.3);
+}
+
+/* Modal Styles */
+.modal {
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+}
+
+.modal-content {
+    background-color: white;
+    margin: 5% auto;
+    padding: 0;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 800px;
+    max-height: 80vh;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    animation: modalSlideIn 0.3s ease;
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-50px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-bottom: 1px solid #dee2e6;
+}
+
+.modal-header h2 {
+    margin: 0;
+    color: #495057;
+    font-size: 1.5rem;
+}
+
+.modal-close {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #adb5bd;
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+.modal-close:hover {
+    color: #495057;
+}
+
+.modal-body {
+    padding: 1.5rem;
+    max-height: 50vh;
+    overflow-y: auto;
+}
+
+.modal-footer {
+    padding: 1rem 1.5rem;
+    background: #f8f9fa;
+    border-top: 1px solid #dee2e6;
+    text-align: right;
+}
+
+.btn-modal-close {
+    padding: 0.5rem 1.5rem;
+    background-color: #6c757d;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.btn-modal-close:hover {
+    background-color: #5a6268;
+}
+
+.duplicate-group {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.duplicate-group-header {
+    margin-bottom: 0.5rem;
+    font-size: 1rem;
+}
+
+.duplicate-group-count {
+    color: #dc3545;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.duplicate-group-positions {
+    margin-bottom: 1rem;
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+
+.duplicate-group-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.btn-keep-one,
+.btn-remove-all {
+    padding: 0.4rem 0.8rem;
+    border: none;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-keep-one {
+    background-color: #28a745;
+    color: white;
+}
+
+.btn-keep-one:hover {
+    background-color: #218838;
+}
+
+.btn-remove-all {
+    background-color: #dc3545;
+    color: white;
+}
+
+.btn-remove-all:hover {
+    background-color: #c82333;
+}
+
+.temp-message.info {
+    background-color: #d1ecf1;
+    color: #0c5460;
+    border: 1px solid #bee5eb;
+}
+
 /* Responsive design */
 @media (max-width: 768px) {
     .container {
@@ -731,6 +1197,24 @@ document.addEventListener('DOMContentLoaded', function() {
     .btn-generate {
         padding: 0.875rem 1.5rem;
         font-size: 1.1rem;
+    }
+    
+    .alert-content {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .alert-actions {
+        justify-content: center;
+    }
+    
+    .modal-content {
+        width: 95%;
+        margin: 2% auto;
+    }
+    
+    .duplicate-group-actions {
+        flex-direction: column;
     }
 }
 </style>
