@@ -70,7 +70,8 @@ class Command(BaseCommand):
 
         # Reset status and retry tasks
         for prompt in stuck_prompts:
-            self.stdout.write(f'Resetting prompt ID {prompt.id}: {prompt.prompt_text[:50]}...')
+            api_provider = prompt.api_provider or 'whisk'
+            self.stdout.write(f'Resetting prompt ID {prompt.id} ({api_provider}): {prompt.prompt_text[:50]}...')
             prompt.status = 'pending'
             prompt.save()
             

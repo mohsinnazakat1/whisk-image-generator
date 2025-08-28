@@ -1,0 +1,318 @@
+{% extends "image_generator/base.html" %}
+
+{% block content %}
+<div class="container">
+    <h1>ImageFX API Settings</h1>
+    <p class="settings-description">Configure your ImageFX API authentication token to enable image generation.</p>
+    
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+    
+    <form method="post" class="settings-form">
+        {% csrf_token %}
+        
+        <div class="form-group">
+            <label for="{{ form.auth_token.id_for_label }}" class="form-label">
+                {{ form.auth_token.label }}
+                <span class="required">*</span>
+            </label>
+            {{ form.auth_token }}
+            {% if form.auth_token.errors %}
+                <div class="field-errors">
+                    {% for error in form.auth_token.errors %}
+                        <div class="error-message">{{ error }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+            <div class="form-help">
+                Your ImageFX API authentication token. This is required to generate images using ImageFX.
+            </div>
+        </div>
+        
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">
+                <span class="btn-icon">💾</span>
+                Save Settings
+            </button>
+            <a href="{% url 'index' %}" class="btn btn-secondary">
+                <span class="btn-icon">🏠</span>
+                Back to Generator
+            </a>
+        </div>
+    </form>
+    
+    <div class="settings-info">
+        <h3>How to get your ImageFX API Token:</h3>
+        <ol>
+            <li>Visit the ImageFX API documentation</li>
+            <li>Create an account or sign in</li>
+            <li>Generate an API authentication token</li>
+            <li>Copy and paste the token above</li>
+        </ol>
+        
+        <div class="current-settings">
+            <h3>Current Settings:</h3>
+            <div class="settings-display">
+                <div class="setting-item">
+                    <span class="setting-label">Authentication Token:</span>
+                    <span class="setting-value">
+                        {% if settings.auth_token %}
+                            <span class="token-preview">{{ settings.auth_token|slice:":10" }}...</span>
+                            <span class="status-badge configured">✓ Configured</span>
+                        {% else %}
+                            <span class="status-badge not-configured">⚠ Not Configured</span>
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="setting-item">
+                    <span class="setting-label">Last Updated:</span>
+                    <span class="setting-value">{{ settings.updated_at|date:"M d, Y H:i" }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.container {
+    max-width: 800px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+}
+
+.settings-description {
+    text-align: center;
+    color: #606770;
+    font-size: 1.1rem;
+    margin-bottom: 2rem;
+    line-height: 1.5;
+}
+
+.alert {
+    padding: 1rem;
+    border-radius: 6px;
+    margin-bottom: 1.5rem;
+    font-weight: 500;
+}
+
+.alert-success {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.alert-error {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.settings-form {
+    background: white;
+    padding: 2rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    margin-bottom: 2rem;
+}
+
+.form-group {
+    margin-bottom: 2rem;
+}
+
+.form-label {
+    display: block;
+    margin-bottom: 0.75rem;
+    font-weight: 600;
+    color: #1c1e21;
+    font-size: 1.1rem;
+}
+
+.required {
+    color: #fa383e;
+    margin-left: 0.25rem;
+}
+
+.form-help {
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
+    color: #606770;
+    line-height: 1.4;
+}
+
+.field-errors {
+    margin-top: 0.5rem;
+}
+
+.error-message {
+    color: #fa383e;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.form-actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: flex-start;
+    margin-top: 2rem;
+}
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.875rem 1.5rem;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #4285f4 0%, #1a73e8 100%);
+    color: white;
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, #1a73e8 0%, #1557b0 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(66, 133, 244, 0.3);
+}
+
+.btn-secondary {
+    background: #f8f9fa;
+    color: #495057;
+    border: 1px solid #dee2e6;
+}
+
+.btn-secondary:hover {
+    background: #e9ecef;
+    color: #495057;
+    text-decoration: none;
+    transform: translateY(-1px);
+}
+
+.btn-icon {
+    font-size: 1.1rem;
+}
+
+.settings-info {
+    background: white;
+    padding: 2rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.settings-info h3 {
+    color: #1c1e21;
+    margin-bottom: 1rem;
+    font-size: 1.2rem;
+}
+
+.settings-info ol {
+    margin-left: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.settings-info li {
+    margin-bottom: 0.5rem;
+    line-height: 1.5;
+    color: #495057;
+}
+
+.current-settings {
+    border-top: 1px solid #dee2e6;
+    padding-top: 2rem;
+    margin-top: 2rem;
+}
+
+.settings-display {
+    background: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+}
+
+.setting-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.setting-item:last-child {
+    border-bottom: none;
+}
+
+.setting-label {
+    font-weight: 600;
+    color: #495057;
+}
+
+.setting-value {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.token-preview {
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    background: #e9ecef;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+}
+
+.status-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.status-badge.configured {
+    background: #d4edda;
+    color: #155724;
+}
+
+.status-badge.not-configured {
+    background: #fff3cd;
+    color: #856404;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .container {
+        margin: 1rem auto;
+        padding: 0 1rem;
+    }
+    
+    .settings-form, .settings-info {
+        padding: 1.5rem;
+    }
+    
+    .form-actions {
+        flex-direction: column;
+    }
+    
+    .btn {
+        justify-content: center;
+    }
+    
+    .setting-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+}
+</style>
+{% endblock %}

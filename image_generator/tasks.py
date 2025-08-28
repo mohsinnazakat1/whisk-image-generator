@@ -1,6 +1,6 @@
 from celery import shared_task
-from .models import ImagePrompt, WhiskSettings
-from . import whisk
+from .models import ImagePrompt, WhiskSettings, ImageFXSettings
+from . import whisk, imagefx
 import logging
 
 logger = logging.getLogger(__name__)
@@ -26,15 +26,28 @@ def generate_image_task(self, prompt_id):
         image_prompt.save()
         logger.info(f"Starting image generation for prompt {prompt_id}: {image_prompt.prompt_text}")
         
-        # Check if settings are configured
-        whisk_settings = WhiskSettings.get_settings()
-        if not whisk_settings.auth_token or not whisk_settings.project_id:
-            logger.error("Whisk settings not configured")
-            raise Exception('Whisk API settings not configured. Please configure auth token and project ID.')
+        # Determine which API to use based on the prompt's api_provider
+        api_provider = image_prompt.api_provider
+        logger.info(f"Using API provider: {api_provider}")
         
-        logger.info("Using configured auth token and project ID from database")
-
-        image_data = whisk.generate_image(image_prompt.prompt_text)
+        if api_provider == 'imagefx':
+            # Check ImageFX settings
+            imagefx_settings = ImageFXSettings.get_settings()
+            if not imagefx_settings.auth_token:
+                logger.error("ImageFX settings not configured")
+                raise Exception('ImageFX API settings not configured. Please configure auth token.')
+            
+            logger.info("Using ImageFX API")
+            image_data = imagefx.generate_image(image_prompt.prompt_text)
+        else:
+            # Default to Whisk
+            whisk_settings = WhiskSettings.get_settings()
+            if not whisk_settings.auth_token or not whisk_settings.project_id:
+                logger.error("Whisk settings not configured")
+                raise Exception('Whisk API settings not configured. Please configure auth token and project ID.')
+            
+            logger.info("Using Whisk API")
+            image_data = whisk.generate_image(image_prompt.prompt_text)
         if not image_data:
             raise Exception('Failed to generate image (empty response).')
 

@@ -2,7 +2,7 @@
 
 {% block content %}
 <div class="container">
-    <h1>Whisk Image Generator</h1>
+    <h1>AI Image Generator</h1>
 
     {% if error %}
         <div class="error">{{ error }}</div>
@@ -10,14 +10,42 @@
 
     {% if not settings_configured %}
         <div style="background-color: #fff3cd; border: 1px solid #ffeaa7; color: #856404; padding: 1rem; border-radius: 6px; margin: 1rem 0;">
-            <strong>⚠️ Setup Required:</strong> Please <a href="{% url 'whisk_settings' %}" style="color: #1877f2; text-decoration: underline;">configure your Whisk API settings</a> before generating images.
+            <strong>⚠️ Setup Required:</strong> Please configure your API settings: 
+            <a href="{% url 'whisk_settings' %}" style="color: #1877f2; text-decoration: underline;">Whisk Settings</a> | 
+            <a href="{% url 'imagefx_settings' %}" style="color: #1877f2; text-decoration: underline;">ImageFX Settings</a>
         </div>
     {% endif %}
 
     <form class="prompt-form" action="{% url 'generate_image' %}" method="post">
         {% csrf_token %}
+        
+        <!-- API Provider Toggle -->
+        <div class="api-toggle" style="margin-bottom: 1rem;">
+            <label style="font-weight: bold; margin-bottom: 0.5rem; display: block;">Choose API Provider:</label>
+            <div style="display: flex; gap: 1rem; align-items: center;">
+                <label style="display: flex; align-items: center; cursor: pointer;">
+                    <input type="radio" name="api_provider" value="whisk" 
+                           {% if api_provider == 'whisk' or not api_provider %}checked{% endif %}
+                           {% if not whisk_configured %}disabled{% endif %}
+                           style="margin-right: 0.5rem;">
+                    <span style="{% if not whisk_configured %}color: #999;{% endif %}">
+                        Whisk {% if not whisk_configured %}(Not Configured){% endif %}
+                    </span>
+                </label>
+                <label style="display: flex; align-items: center; cursor: pointer;">
+                    <input type="radio" name="api_provider" value="imagefx" 
+                           {% if api_provider == 'imagefx' %}checked{% endif %}
+                           {% if not imagefx_configured %}disabled{% endif %}
+                           style="margin-right: 0.5rem;">
+                    <span style="{% if not imagefx_configured %}color: #999;{% endif %}">
+                        ImageFX {% if not imagefx_configured %}(Not Configured){% endif %}
+                    </span>
+                </label>
+            </div>
+        </div>
+        
         <textarea name="prompt" placeholder="Enter a creative prompt..." required>{{ prompt|default:'' }}</textarea>
-        <button type="submit">Generate Images</button>
+        <button type="submit" {% if not settings_configured %}disabled{% endif %}>Generate Images</button>
     </form>
 
     {% if generated_image %}
@@ -26,6 +54,9 @@
             <div class="image-grid">
                 <div class="image-card">
                     <img src="{{ generated_image }}" alt="Generated Image">
+                    <div class="api-badge" style="position: absolute; top: 8px; right: 8px; background: {% if api_provider == 'imagefx' %}#4285f4{% else %}#ff6b35{% endif %}; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: bold;">
+                        {% if api_provider == 'imagefx' %}ImageFX{% else %}Whisk{% endif %}
+                    </div>
                     <div class="image-actions">
                         <a href="#" class="preview-btn" data-src="{{ generated_image }}">Preview</a>
                         <a href="{{ generated_image }}" download="generated_image.png">Download</a>

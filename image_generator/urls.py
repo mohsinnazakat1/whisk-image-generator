@@ -14,6 +14,9 @@ urlpatterns = [
     path('api/bulk/<int:bulk_request_id>/download/', views.download_all_images, name='download_all_images'),
     path('api/prompt/<int:prompt_id>/mark-completed/', views.mark_prompt_completed, name='mark_prompt_completed'),
     path('api/bulk/<int:bulk_request_id>/reset-stuck/', views.reset_stuck_prompts, name='reset_stuck_prompts'),
+    path('api/bulk/delete-multiple/', views.bulk_delete_requests, name='bulk_delete_requests'),
+    path('api/bulk/download-multiple/', views.bulk_download_requests, name='bulk_download_requests'),
     path('settings/', views.whisk_settings, name='whisk_settings'),
+    path('settings/imagefx/', views.imagefx_settings, name='imagefx_settings'),
     path('settings/view/', views.settings_view, name='settings_view'),
 ]

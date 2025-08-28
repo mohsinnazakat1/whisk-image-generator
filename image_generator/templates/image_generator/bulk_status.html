@@ -4,6 +4,11 @@
 {% block content %}
 <div class="container">
     <h1>{{ bulk_request.title }}</h1>
+    <div class="bulk-info">
+        <span class="api-badge api-badge-{{ bulk_request.api_provider }}">
+            {% if bulk_request.api_provider == 'imagefx' %}🖼️ ImageFX{% else %}🎨 Whisk{% endif %}
+        </span>
+    </div>
     
     <!-- Real-time Status Summary -->
     <div class="status-summary">
@@ -176,6 +181,12 @@ document.addEventListener('DOMContentLoaded', () => {
                             img.src = prompt.generated_image;
                             placeholder.innerHTML = '';
                             placeholder.appendChild(img);
+                            
+                            // Add API provider badge
+                            const apiBadge = document.createElement('div');
+                            apiBadge.className = 'api-badge-overlay api-badge-{{ bulk_request.api_provider }}';
+                            apiBadge.textContent = '{{ bulk_request.api_provider|title }}';
+                            placeholder.appendChild(apiBadge);
                         }
                     } else if (prompt.status === 'processing') {
                         retryBtn.style.display = 'none';
@@ -464,6 +475,47 @@ document.addEventListener('DOMContentLoaded', () => {
     grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
     gap: 1rem;
     padding: 1rem 0;
+}
+
+/* API Badge Styles */
+.bulk-info {
+    margin-bottom: 1rem;
+}
+
+.api-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: white;
+}
+
+.api-badge-whisk {
+    background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+}
+
+.api-badge-imagefx {
+    background: linear-gradient(135deg, #4285f4 0%, #1a73e8 100%);
+}
+
+.api-badge-overlay {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: bold;
+    color: white;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.image-placeholder {
+    position: relative;
 }
 
 /* Responsive design for status cards */

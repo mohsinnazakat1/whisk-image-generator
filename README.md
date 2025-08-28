@@ -55,12 +55,12 @@ A Django-based web application that leverages the Whisk API to generate images f
         ```
     *   Run the following commands to create the database and user:
         ```sql
-        CREATE DATABASE whisk;
-        CREATE USER whisk_user WITH PASSWORD 'whisk_password';
-        GRANT ALL PRIVILEGES ON DATABASE whisk TO whisk_user;
-        ALTER ROLE whisk_user SET client_encoding TO 'utf8';
-        ALTER ROLE whisk_user SET default_transaction_isolation TO 'read committed';
-        ALTER ROLE whisk_user SET timezone TO 'UTC';
+        CREATE DATABASE image_gen_db;
+        CREATE USER image_gen_user WITH PASSWORD 'image_gen_password';
+        GRANT ALL PRIVILEGES ON DATABASE image_gen_db TO image_gen_user;
+        ALTER ROLE image_gen_user SET client_encoding TO 'utf8';
+        ALTER ROLE image_gen_user SET default_transaction_isolation TO 'read committed';
+        ALTER ROLE image_gen_user SET timezone TO 'UTC';
         \q
         ```
 

@@ -1,59 +1,230 @@
 {% extends 'image_generator/base.html' %}
 
-{% block title %}Whisk API Settings - View{% endblock %}
+{% block title %}API Settings - View{% endblock %}
 
 {% block content %}
 <div class="container">
-    <h1>Whisk API Settings (Read Only)</h1>
+    <h1>API Settings Overview</h1>
 
-    <div style="background-color: #f7f8fa; border: 1px solid #dddfe2; border-radius: 8px; padding: 2rem; margin: 2rem 0;">
-        <div style="margin-bottom: 2rem;">
-            <div style="display: flex; margin-bottom: 1rem;">
-                <div style="width: 200px; font-weight: 600;">Authentication Token:</div>
-                <div style="flex: 1;">
-                    {% if settings.auth_token %}
-                        <code style="background-color: #fff; padding: 0.5rem; border-radius: 4px; border: 1px solid #dddfe2;">
-                            {{ settings.auth_token|slice:":10" }}...{{ settings.auth_token|slice:"-10:" }}
-                        </code>
-                        <div style="font-size: 0.875rem; color: #606770; margin-top: 0.25rem;">Token is masked for security</div>
+    <!-- Whisk Settings -->
+    <div class="settings-section">
+        <h2>🎨 Whisk API Settings</h2>
+        <div class="settings-card">
+            <div class="setting-row">
+                <div class="setting-label">Authentication Token:</div>
+                <div class="setting-value">
+                    {% if whisk_settings.auth_token %}
+                        <code class="token-display">{{ whisk_settings.auth_token|slice:":10" }}...{{ whisk_settings.auth_token|slice:"-10:" }}</code>
+                        <span class="status-badge configured">✓ Configured</span>
                     {% else %}
-                        <span style="color: #f56500; font-weight: 600;">Not configured</span>
+                        <span class="status-badge not-configured">⚠ Not configured</span>
                     {% endif %}
                 </div>
             </div>
 
-            <div style="display: flex; margin-bottom: 1rem;">
-                <div style="width: 200px; font-weight: 600;">Project ID:</div>
-                <div style="flex: 1;">
-                    {% if settings.project_id %}
-                        <code style="background-color: #fff; padding: 0.5rem; border-radius: 4px; border: 1px solid #dddfe2;">{{ settings.project_id }}</code>
+            <div class="setting-row">
+                <div class="setting-label">Project ID:</div>
+                <div class="setting-value">
+                    {% if whisk_settings.project_id %}
+                        <code class="token-display">{{ whisk_settings.project_id }}</code>
+                        <span class="status-badge configured">✓ Configured</span>
                     {% else %}
-                        <span style="color: #f56500; font-weight: 600;">Not configured</span>
+                        <span class="status-badge not-configured">⚠ Not configured</span>
                     {% endif %}
                 </div>
             </div>
-        </div>
 
-        {% if settings.created_at %}
-            <div style="border-top: 1px solid #dddfe2; padding-top: 1rem; margin-top: 2rem;">
-                <div style="display: flex; justify-content: space-between; font-size: 0.875rem; color: #606770;">
-                    <span><strong>Created:</strong> {{ settings.created_at|date:"M d, Y H:i" }}</span>
-                    <span><strong>Last Updated:</strong> {{ settings.updated_at|date:"M d, Y H:i" }}</span>
+            {% if whisk_settings.created_at %}
+                <div class="settings-meta">
+                    <span><strong>Created:</strong> {{ whisk_settings.created_at|date:"M d, Y H:i" }}</span>
+                    <span><strong>Last Updated:</strong> {{ whisk_settings.updated_at|date:"M d, Y H:i" }}</span>
                 </div>
-            </div>
-        {% endif %}
+            {% endif %}
 
-        <div style="text-align: right; margin-top: 2rem;">
-            <a href="{% url 'whisk_settings' %}" style="display: inline-block; padding: 0.75rem 1.5rem; background-color: #1877f2; color: #fff; text-decoration: none; border-radius: 6px; font-weight: 600; transition: background-color 0.3s;">
-                Edit Settings
-            </a>
+            <div class="settings-actions">
+                <a href="{% url 'whisk_settings' %}" class="btn btn-primary">Edit Whisk Settings</a>
+            </div>
         </div>
     </div>
 
-    <div style="margin-top: 2rem;">
-        <a href="{% url 'index' %}" style="display: inline-block; padding: 0.75rem 1.5rem; background-color: transparent; color: #606770; border: 1px solid #dddfe2; text-decoration: none; border-radius: 6px; font-weight: 600; transition: all 0.3s;">
-            ← Back to Home
-        </a>
+    <!-- ImageFX Settings -->
+    <div class="settings-section">
+        <h2>🖼️ ImageFX API Settings</h2>
+        <div class="settings-card">
+            <div class="setting-row">
+                <div class="setting-label">Authentication Token:</div>
+                <div class="setting-value">
+                    {% if imagefx_settings.auth_token %}
+                        <code class="token-display">{{ imagefx_settings.auth_token|slice:":10" }}...{{ imagefx_settings.auth_token|slice:"-10:" }}</code>
+                        <span class="status-badge configured">✓ Configured</span>
+                    {% else %}
+                        <span class="status-badge not-configured">⚠ Not configured</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if imagefx_settings.created_at %}
+                <div class="settings-meta">
+                    <span><strong>Created:</strong> {{ imagefx_settings.created_at|date:"M d, Y H:i" }}</span>
+                    <span><strong>Last Updated:</strong> {{ imagefx_settings.updated_at|date:"M d, Y H:i" }}</span>
+                </div>
+            {% endif %}
+
+            <div class="settings-actions">
+                <a href="{% url 'imagefx_settings' %}" class="btn btn-primary">Edit ImageFX Settings</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="back-navigation">
+        <a href="{% url 'index' %}" class="btn btn-secondary">← Back to Home</a>
     </div>
 </div>
+
+<style>
+.settings-section {
+    margin-bottom: 3rem;
+}
+
+.settings-section h2 {
+    color: #1c1e21;
+    margin-bottom: 1rem;
+    font-size: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.settings-card {
+    background-color: #f7f8fa;
+    border: 1px solid #dddfe2;
+    border-radius: 8px;
+    padding: 2rem;
+}
+
+.setting-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #e4e6ea;
+}
+
+.setting-row:last-of-type {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.setting-label {
+    width: 200px;
+    font-weight: 600;
+    color: #495057;
+    flex-shrink: 0;
+}
+
+.setting-value {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.token-display {
+    background-color: #fff;
+    padding: 0.5rem;
+    border-radius: 4px;
+    border: 1px solid #dddfe2;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 0.9rem;
+}
+
+.status-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.status-badge.configured {
+    background: #d4edda;
+    color: #155724;
+}
+
+.status-badge.not-configured {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.settings-meta {
+    border-top: 1px solid #dddfe2;
+    padding-top: 1rem;
+    margin-top: 1rem;
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.875rem;
+    color: #606770;
+}
+
+.settings-actions {
+    text-align: right;
+    margin-top: 2rem;
+}
+
+.back-navigation {
+    margin-top: 3rem;
+    text-align: center;
+}
+
+.btn {
+    display: inline-block;
+    padding: 0.75rem 1.5rem;
+    border-radius: 6px;
+    text-decoration: none;
+    font-weight: 600;
+    transition: all 0.3s;
+}
+
+.btn-primary {
+    background-color: #1877f2;
+    color: #fff;
+}
+
+.btn-primary:hover {
+    background-color: #166fe5;
+    color: #fff;
+}
+
+.btn-secondary {
+    background-color: transparent;
+    color: #606770;
+    border: 1px solid #dddfe2;
+}
+
+.btn-secondary:hover {
+    background-color: #f7f8fa;
+    color: #1c1e21;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .setting-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+    
+    .setting-label {
+        width: auto;
+    }
+    
+    .settings-meta {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .settings-actions {
+        text-align: center;
+    }
+}
+</style>
 {% endblock %}

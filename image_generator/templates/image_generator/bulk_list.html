@@ -4,44 +4,192 @@
 <div class="container">
     <h1>Bulk Image Generations</h1>
 
-    <div class="bulk-requests">
-        {% for request in bulk_requests %}
-        <div class="bulk-request-card" data-request-id="{{ request.id }}">
-            <div class="request-header">
-                <h3>{{ request.title }}</h3>
-                <span class="status {{ request.status }}">{{ request.get_status_display }}</span>
-                <span class="timestamp">Created: {{ request.created_at|date:"M d, Y H:i" }}</span>
+    <!-- Statistics Section -->
+    <div class="stats-section">
+        <div class="stats-grid">
+            <div class="stat-card total">
+                <div class="stat-number">{{ stats.total_requests }}</div>
+                <div class="stat-label">Total Requests</div>
             </div>
-            
-            <div class="request-stats">
-                <span>Total Images: {{ request.prompts.count }}</span>
-                <span>Completed: {{ request.prompts.completed.count }}</span>
+            <div class="stat-card whisk">
+                <div class="stat-number">{{ stats.whisk_requests }}</div>
+                <div class="stat-label">🎨 Whisk</div>
             </div>
+            <div class="stat-card imagefx">
+                <div class="stat-number">{{ stats.imagefx_requests }}</div>
+                <div class="stat-label">🖼️ ImageFX</div>
+            </div>
+            <div class="stat-card images">
+                <div class="stat-number">{{ stats.total_images }}</div>
+                <div class="stat-label">Total Images</div>
+            </div>
+            <div class="stat-card completed">
+                <div class="stat-number">{{ stats.completed_images }}</div>
+                <div class="stat-label">Completed</div>
+            </div>
+            <div class="stat-card processing">
+                <div class="stat-number">{{ stats.processing_images }}</div>
+                <div class="stat-label">Processing</div>
+            </div>
+        </div>
+    </div>
 
-            <div class="request-actions">
-                <a href="{% url 'bulk_status' request.id %}" class="btn view-btn">View Details</a>
-                <button class="btn delete-btn" onclick="deleteBulkRequest({{ request.id }})">Delete</button>
-            </div>
+    <!-- Filters and Search Section -->
+    <div class="filters-section">
+        <!-- API Provider Tabs -->
+        <div class="api-tabs">
+            <a href="?api_provider=all&search={{ search_query }}" 
+               class="tab-btn {% if current_api_provider == 'all' %}active{% endif %}">
+                All ({{ stats.total_requests }})
+            </a>
+            <a href="?api_provider=whisk&search={{ search_query }}" 
+               class="tab-btn whisk {% if current_api_provider == 'whisk' %}active{% endif %}">
+                🎨 Whisk ({{ stats.whisk_requests }})
+            </a>
+            <a href="?api_provider=imagefx&search={{ search_query }}" 
+               class="tab-btn imagefx {% if current_api_provider == 'imagefx' %}active{% endif %}">
+                🖼️ ImageFX ({{ stats.imagefx_requests }})
+            </a>
+        </div>
 
-            <div class="image-preview">
-                {% for prompt in request.prompts.all|slice:":4" %}
-                    {% if prompt.generated_image %}
-                    <div class="preview-thumbnail">
-                        <img src="{{ prompt.generated_image }}" alt="Generated Image">
-                    </div>
-                    {% endif %}
-                {% endfor %}
-                {% if request.prompts.count > 4 %}
-                    <div class="more-images">+{{ request.prompts.count|add:"-4" }}</div>
+        <!-- Search and Bulk Actions -->
+        <div class="search-actions">
+            <form method="GET" class="search-form">
+                <input type="hidden" name="api_provider" value="{{ current_api_provider }}">
+                <input type="text" name="search" value="{{ search_query }}" 
+                       placeholder="Search by title..." class="search-input">
+                <button type="submit" class="search-btn">🔍 Search</button>
+                {% if search_query %}
+                    <a href="?api_provider={{ current_api_provider }}" class="clear-search">✕ Clear</a>
                 {% endif %}
+            </form>
+            
+            <div class="bulk-actions" id="bulk-actions" style="display: none;">
+                <button class="btn bulk-delete-btn" onclick="bulkDeleteSelected()">
+                    🗑️ Delete Selected
+                </button>
+                <button class="btn bulk-download-btn" onclick="bulkDownloadSelected()">
+                    📥 Download Selected
+                </button>
+                <span class="selected-count" id="selected-count">0 selected</span>
             </div>
         </div>
-        {% empty %}
-        <div class="no-requests">
-            <p>No bulk image generations found.</p>
-            <a href="{% url 'bulk_image_generator' %}" class="btn">Create New Bulk Generation</a>
-        </div>
-        {% endfor %}
+    </div>
+
+    <!-- Bulk Requests List -->
+    <div class="bulk-requests">
+        {% if bulk_requests %}
+            <!-- Select All Checkbox -->
+            <div class="select-all-section">
+                <label class="checkbox-container">
+                    <input type="checkbox" id="select-all" onchange="toggleSelectAll()">
+                    <span class="checkmark"></span>
+                    Select All
+                </label>
+            </div>
+
+            {% for request in bulk_requests %}
+            <div class="bulk-request-card" data-request-id="{{ request.id }}">
+                <div class="request-header">
+                    <label class="checkbox-container">
+                        <input type="checkbox" class="request-checkbox" 
+                               value="{{ request.id }}" onchange="updateBulkActions()">
+                        <span class="checkmark"></span>
+                    </label>
+                    <h3>{{ request.title }}</h3>
+                    <div class="header-badges">
+                        <span class="api-badge api-badge-{{ request.api_provider|default:'whisk' }}">
+                            {% if request.api_provider == 'imagefx' %}🖼️ ImageFX{% else %}🎨 Whisk{% endif %}
+                        </span>
+                        <span class="status {{ request.status }}">{{ request.get_status_display }}</span>
+                    </div>
+                    <span class="timestamp">{{ request.created_at|date:"M d, Y H:i" }}</span>
+                </div>
+                
+                <div class="request-stats">
+                    <div class="stat-item">
+                        <span class="stat-value">{{ request.total_count }}</span>
+                        <span class="stat-name">Total</span>
+                    </div>
+                    <div class="stat-item completed">
+                        <span class="stat-value">{{ request.completed_count }}</span>
+                        <span class="stat-name">Completed</span>
+                    </div>
+                    <div class="stat-item failed">
+                        <span class="stat-value">{{ request.failed_count }}</span>
+                        <span class="stat-name">Failed</span>
+                    </div>
+                    <div class="stat-item processing">
+                        <span class="stat-value">{{ request.processing_count }}</span>
+                        <span class="stat-name">Processing</span>
+                    </div>
+                </div>
+
+                <div class="request-actions">
+                    <a href="{% url 'bulk_status' request.id %}" class="btn view-btn">👁️ View Details</a>
+                    <a href="{% url 'download_all_images' request.id %}" class="btn download-btn">📥 Download</a>
+                    <button class="btn delete-btn" onclick="deleteBulkRequest({{ request.id }})">🗑️ Delete</button>
+                </div>
+
+                <div class="image-preview">
+                    {% for prompt in request.prompts.all|slice:":4" %}
+                        {% if prompt.generated_image %}
+                        <div class="preview-thumbnail">
+                            <img src="{{ prompt.generated_image }}" alt="Generated Image">
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                    {% if request.total_count > 4 %}
+                        <div class="more-images">+{{ request.total_count|add:"-4" }}</div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+
+            <!-- Pagination -->
+            {% if paginator.num_pages > 1 %}
+            <div class="pagination-section">
+                <div class="pagination">
+                    {% if page_obj.has_previous %}
+                        <a href="?page=1&api_provider={{ current_api_provider }}&search={{ search_query }}" 
+                           class="page-btn">« First</a>
+                        <a href="?page={{ page_obj.previous_page_number }}&api_provider={{ current_api_provider }}&search={{ search_query }}" 
+                           class="page-btn">‹ Previous</a>
+                    {% endif %}
+
+                    <span class="page-info">
+                        Page {{ page_obj.number }} of {{ paginator.num_pages }}
+                        ({{ page_obj.start_index }}-{{ page_obj.end_index }} of {{ paginator.count }} requests)
+                    </span>
+
+                    {% if page_obj.has_next %}
+                        <a href="?page={{ page_obj.next_page_number }}&api_provider={{ current_api_provider }}&search={{ search_query }}" 
+                           class="page-btn">Next ›</a>
+                        <a href="?page={{ paginator.num_pages }}&api_provider={{ current_api_provider }}&search={{ search_query }}" 
+                           class="page-btn">Last »</a>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+        {% else %}
+            <div class="no-requests">
+                <div class="empty-state">
+                    <div class="empty-icon">📁</div>
+                    <h3>No bulk generations found</h3>
+                    {% if search_query %}
+                        <p>No results found for "{{ search_query }}"</p>
+                        <a href="?api_provider={{ current_api_provider }}" class="btn">Clear Search</a>
+                    {% elif current_api_provider != 'all' %}
+                        <p>No {{ current_api_provider|title }} generations found</p>
+                        <a href="?api_provider=all" class="btn">View All</a>
+                    {% else %}
+                        <p>Start creating bulk image generations to see them here</p>
+                        <a href="{% url 'bulk_image_generator' %}" class="btn">Create New Bulk Generation</a>
+                    {% endif %}
+                </div>
+            </div>
+        {% endif %}
     </div>
 </div>
 
@@ -74,6 +222,7 @@ function deleteBulkRequest(requestId) {
         }).then(function(response) {
             if (response.ok) {
                 document.querySelector(`[data-request-id="${requestId}"]`).remove();
+                updateBulkActions();
             } else {
                 alert('Failed to delete the request. Please try again.');
             }
@@ -83,73 +232,441 @@ function deleteBulkRequest(requestId) {
         });
     }
 }
+
+function toggleSelectAll() {
+    const selectAllCheckbox = document.getElementById('select-all');
+    const requestCheckboxes = document.querySelectorAll('.request-checkbox');
+    
+    requestCheckboxes.forEach(checkbox => {
+        checkbox.checked = selectAllCheckbox.checked;
+    });
+    
+    updateBulkActions();
+}
+
+function updateBulkActions() {
+    const selectedCheckboxes = document.querySelectorAll('.request-checkbox:checked');
+    const bulkActions = document.getElementById('bulk-actions');
+    const selectedCount = document.getElementById('selected-count');
+    const selectAllCheckbox = document.getElementById('select-all');
+    
+    const count = selectedCheckboxes.length;
+    selectedCount.textContent = `${count} selected`;
+    
+    if (count > 0) {
+        bulkActions.style.display = 'flex';
+    } else {
+        bulkActions.style.display = 'none';
+    }
+    
+    // Update select all checkbox state
+    const allCheckboxes = document.querySelectorAll('.request-checkbox');
+    if (selectAllCheckbox) {
+        selectAllCheckbox.checked = count === allCheckboxes.length;
+        selectAllCheckbox.indeterminate = count > 0 && count < allCheckboxes.length;
+    }
+}
+
+function getSelectedRequestIds() {
+    const selectedCheckboxes = document.querySelectorAll('.request-checkbox:checked');
+    return Array.from(selectedCheckboxes).map(cb => parseInt(cb.value));
+}
+
+function bulkDeleteSelected() {
+    const selectedIds = getSelectedRequestIds();
+    
+    if (selectedIds.length === 0) {
+        alert('Please select at least one request to delete.');
+        return;
+    }
+    
+    if (confirm(`Are you sure you want to delete ${selectedIds.length} bulk request(s) and all their generated images?`)) {
+        const csrftoken = getCookie('csrftoken');
+        
+        fetch('/api/bulk/delete-multiple/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                request_ids: selectedIds
+            })
+        }).then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                // Remove deleted cards from DOM
+                selectedIds.forEach(id => {
+                    const card = document.querySelector(`[data-request-id="${id}"]`);
+                    if (card) card.remove();
+                });
+                
+                updateBulkActions();
+                alert(data.message);
+                
+                // Reload page if no items left
+                if (document.querySelectorAll('.bulk-request-card').length === 0) {
+                    location.reload();
+                }
+            } else {
+                alert('Error: ' + data.message);
+            }
+        }).catch(error => {
+            console.error('Error:', error);
+            alert('Failed to delete requests. Please try again.');
+        });
+    }
+}
+
+function bulkDownloadSelected() {
+    const selectedIds = getSelectedRequestIds();
+    
+    if (selectedIds.length === 0) {
+        alert('Please select at least one request to download.');
+        return;
+    }
+    
+    // Create download link
+    const downloadUrl = `/api/bulk/download-multiple/?ids=${selectedIds.join(',')}`;
+    window.location.href = downloadUrl;
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    updateBulkActions();
+});
 </script>
 
 <style>
+/* Statistics Section */
+.stats-section {
+    margin-bottom: 2rem;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.stat-card {
+    background: white;
+    border-radius: 8px;
+    padding: 1.5rem;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border-left: 4px solid;
+}
+
+.stat-card.total { border-left-color: #6c757d; }
+.stat-card.whisk { border-left-color: #ff6b35; }
+.stat-card.imagefx { border-left-color: #4285f4; }
+.stat-card.images { border-left-color: #17a2b8; }
+.stat-card.completed { border-left-color: #28a745; }
+.stat-card.processing { border-left-color: #ffc107; }
+
+.stat-number {
+    font-size: 2rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+}
+
+.stat-card.total .stat-number { color: #6c757d; }
+.stat-card.whisk .stat-number { color: #ff6b35; }
+.stat-card.imagefx .stat-number { color: #4285f4; }
+.stat-card.images .stat-number { color: #17a2b8; }
+.stat-card.completed .stat-number { color: #28a745; }
+.stat-card.processing .stat-number { color: #ffc107; }
+
+.stat-label {
+    font-size: 0.9rem;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Filters Section */
+.filters-section {
+    background: white;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.api-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.tab-btn {
+    padding: 0.75rem 1.5rem;
+    text-decoration: none;
+    color: #6c757d;
+    border-bottom: 3px solid transparent;
+    transition: all 0.3s;
+    font-weight: 500;
+}
+
+.tab-btn:hover {
+    color: #495057;
+    text-decoration: none;
+}
+
+.tab-btn.active {
+    color: #495057;
+    border-bottom-color: #007bff;
+}
+
+.tab-btn.whisk.active {
+    border-bottom-color: #ff6b35;
+}
+
+.tab-btn.imagefx.active {
+    border-bottom-color: #4285f4;
+}
+
+.search-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.search-form {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.search-input {
+    padding: 0.5rem 1rem;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    min-width: 250px;
+}
+
+.search-btn {
+    padding: 0.5rem 1rem;
+    background: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.clear-search {
+    color: #dc3545;
+    text-decoration: none;
+    padding: 0.5rem;
+}
+
+.bulk-actions {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.bulk-delete-btn {
+    background: #dc3545;
+    color: white;
+}
+
+.bulk-download-btn {
+    background: #28a745;
+    color: white;
+}
+
+.selected-count {
+    font-size: 0.9rem;
+    color: #6c757d;
+    margin-left: 0.5rem;
+}
+
+/* Select All Section */
+.select-all-section {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+}
+
+/* Checkbox Styles */
+.checkbox-container {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.checkbox-container input[type="checkbox"] {
+    display: none;
+}
+
+.checkmark {
+    width: 20px;
+    height: 20px;
+    border: 2px solid #dee2e6;
+    border-radius: 4px;
+    margin-right: 0.75rem;
+    position: relative;
+    transition: all 0.3s;
+}
+
+.checkbox-container input[type="checkbox"]:checked + .checkmark {
+    background: #007bff;
+    border-color: #007bff;
+}
+
+.checkbox-container input[type="checkbox"]:checked + .checkmark::after {
+    content: '✓';
+    position: absolute;
+    color: white;
+    font-size: 14px;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+/* Bulk Requests */
 .bulk-requests {
     display: flex;
     flex-direction: column;
-    gap: 20px;
-    margin-top: 20px;
+    gap: 1rem;
 }
 
 .bulk-request-card {
     background: white;
     border-radius: 8px;
-    padding: 20px;
+    padding: 1.5rem;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.bulk-request-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
 }
 
 .request-header {
     display: flex;
     align-items: center;
-    gap: 15px;
-    margin-bottom: 15px;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
 }
 
 .request-header h3 {
     margin: 0;
+    flex: 1;
+    min-width: 200px;
+    font-size: 1.1rem;
+}
+
+.header-badges {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.api-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: white;
+}
+
+.api-badge-whisk {
+    background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+}
+
+.api-badge-imagefx {
+    background: linear-gradient(135deg, #4285f4 0%, #1a73e8 100%);
 }
 
 .status {
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 0.9em;
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 500;
 }
 
-.status.pending { background: #fff3cd; }
-.status.processing { background: #cfe2ff; }
-.status.completed { background: #d1e7dd; }
+.status.pending { background: #fff3cd; color: #856404; }
+.status.processing { background: #cfe2ff; color: #0c5460; }
+.status.completed { background: #d1e7dd; color: #155724; }
 
 .timestamp {
-    color: #666;
-    font-size: 0.9em;
+    color: #6c757d;
+    font-size: 0.9rem;
+    white-space: nowrap;
 }
 
 .request-stats {
     display: flex;
-    gap: 20px;
-    margin-bottom: 15px;
+    gap: 1.5rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+}
+
+.stat-item {
+    text-align: center;
+}
+
+.stat-value {
+    display: block;
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #495057;
+}
+
+.stat-item.completed .stat-value { color: #28a745; }
+.stat-item.failed .stat-value { color: #dc3545; }
+.stat-item.processing .stat-value { color: #ffc107; }
+
+.stat-name {
+    display: block;
+    font-size: 0.8rem;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
 .request-actions {
     display: flex;
-    gap: 10px;
-    margin-bottom: 15px;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
 }
 
 .btn {
-    padding: 8px 16px;
+    padding: 0.5rem 1rem;
     border-radius: 4px;
     cursor: pointer;
     border: none;
-    font-size: 0.9em;
+    font-size: 0.9rem;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    transition: all 0.3s;
 }
 
 .view-btn {
-    background: #0d6efd;
+    background: #007bff;
     color: white;
-    text-decoration: none;
+}
+
+.download-btn {
+    background: #28a745;
+    color: white;
 }
 
 .delete-btn {
@@ -157,18 +674,24 @@ function deleteBulkRequest(requestId) {
     color: white;
 }
 
+.btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
 .image-preview {
     display: flex;
-    gap: 10px;
+    gap: 0.5rem;
     overflow-x: auto;
-    padding: 10px 0;
+    padding: 0.5rem 0;
 }
 
 .preview-thumbnail {
-    width: 100px;
-    height: 100px;
+    width: 80px;
+    height: 80px;
     overflow: hidden;
     border-radius: 4px;
+    flex-shrink: 0;
 }
 
 .preview-thumbnail img {
@@ -178,22 +701,130 @@ function deleteBulkRequest(requestId) {
 }
 
 .more-images {
-    width: 100px;
-    height: 100px;
+    width: 80px;
+    height: 80px;
     background: #f8f9fa;
     display: flex;
     align-items: center;
     justify-content: center;
     border-radius: 4px;
-    font-size: 1.2em;
-    color: #666;
+    font-size: 1rem;
+    color: #6c757d;
+    border: 2px dashed #dee2e6;
+    flex-shrink: 0;
 }
 
+/* Pagination */
+.pagination-section {
+    margin-top: 2rem;
+    display: flex;
+    justify-content: center;
+}
+
+.pagination {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: white;
+    padding: 1rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.page-btn {
+    padding: 0.5rem 1rem;
+    background: #f8f9fa;
+    color: #495057;
+    text-decoration: none;
+    border-radius: 4px;
+    transition: all 0.3s;
+}
+
+.page-btn:hover {
+    background: #e9ecef;
+    text-decoration: none;
+}
+
+.page-info {
+    padding: 0.5rem 1rem;
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+
+/* Empty State */
 .no-requests {
     text-align: center;
-    padding: 40px;
-    background: #f8f9fa;
+    padding: 3rem;
+}
+
+.empty-state {
+    background: white;
     border-radius: 8px;
+    padding: 3rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.empty-icon {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+}
+
+.empty-state h3 {
+    color: #495057;
+    margin-bottom: 1rem;
+}
+
+.empty-state p {
+    color: #6c757d;
+    margin-bottom: 2rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .search-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .search-form {
+        justify-content: center;
+    }
+    
+    .search-input {
+        min-width: auto;
+        flex: 1;
+    }
+    
+    .api-tabs {
+        flex-wrap: wrap;
+    }
+    
+    .request-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .request-stats {
+        justify-content: space-around;
+    }
+    
+    .request-actions {
+        justify-content: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .container {
+        padding: 1rem;
+    }
 }
 </style>
 {% endblock %}

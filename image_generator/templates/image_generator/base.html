@@ -10,12 +10,19 @@
 <body>
     <nav class="navbar">
         <div class="container">
-            <a href="{% url 'index' %}" class="nav-brand">Whisk AI</a>
+            <a href="{% url 'index' %}" class="nav-brand">AI Image Generator</a>
             <div class="nav-links">
                 <a href="{% url 'index' %}" class="nav-link {% if request.resolver_match.url_name == 'index' %}active{% endif %}">Single Image</a>
                 <a href="{% url 'bulk_image_generator' %}" class="nav-link {% if request.resolver_match.url_name == 'bulk_image_generator' %}active{% endif %}">Bulk Generate</a>
                 <a href="{% url 'bulk_list' %}" class="nav-link {% if request.resolver_match.url_name == 'bulk_list' %}active{% endif %}">View Generations</a>
-                <a href="{% url 'whisk_settings' %}" class="nav-link {% if request.resolver_match.url_name == 'whisk_settings' or request.resolver_match.url_name == 'settings_view' %}active{% endif %}">Settings</a>
+                <div class="nav-dropdown">
+                    <a href="#" class="nav-link dropdown-toggle {% if 'settings' in request.resolver_match.url_name %}active{% endif %}">Settings ▼</a>
+                    <div class="dropdown-menu">
+                        <a href="{% url 'whisk_settings' %}" class="dropdown-item">Whisk Settings</a>
+                        <a href="{% url 'imagefx_settings' %}" class="dropdown-item">ImageFX Settings</a>
+                        <a href="{% url 'settings_view' %}" class="dropdown-item">View All Settings</a>
+                    </div>
+                </div>
             </div>
         </div>
     </nav>
