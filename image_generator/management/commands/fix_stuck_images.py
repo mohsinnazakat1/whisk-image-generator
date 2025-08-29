@@ -3,6 +3,7 @@ from image_generator.models import ImagePrompt, BulkImageRequest
 from image_generator.tasks import generate_image_task
 from datetime import datetime, timedelta
 from django.utils import timezone
+from django.db.models import Q
 
 
 class Command(BaseCommand):
@@ -23,23 +24,34 @@ class Command(BaseCommand):
             '--older-than',
             type=int,
             default=10,
-            help='Reset images stuck in processing for more than X minutes (default: 10)',
+            help='Reset images stuck in processing or pending for more than X minutes (default: 10)',
+        )
+        parser.add_argument(
+            '--include-pending',
+            action='store_true',
+            help='Also reset stuck pending images (not just processing)',
         )
 
     def handle(self, *args, **options):
         bulk_id = options.get('bulk_id')
         reset_all = options.get('reset_all')
         older_than_minutes = options.get('older_than')
+        include_pending = options.get('include_pending')
         
         # Calculate cutoff time
         cutoff_time = timezone.now() - timedelta(minutes=older_than_minutes)
+        
+        # Build status filter
+        status_filter = Q(status='processing')
+        if include_pending:
+            status_filter |= Q(status='pending')
         
         if bulk_id:
             # Fix stuck images for specific bulk request
             try:
                 bulk_request = BulkImageRequest.objects.get(id=bulk_id)
                 stuck_prompts = bulk_request.prompts.filter(
-                    status='processing',
+                    status_filter,
                     updated_at__lt=cutoff_time
                 )
             except BulkImageRequest.DoesNotExist:
@@ -50,7 +62,7 @@ class Command(BaseCommand):
         elif reset_all:
             # Fix all stuck images across all bulk requests
             stuck_prompts = ImagePrompt.objects.filter(
-                status='processing',
+                status_filter,
                 updated_at__lt=cutoff_time
             )
         else:
@@ -60,8 +72,9 @@ class Command(BaseCommand):
             return
 
         if not stuck_prompts.exists():
+            status_types = "processing/pending" if include_pending else "processing"
             self.stdout.write(
-                self.style.SUCCESS(f'No stuck images found (older than {older_than_minutes} minutes)')
+                self.style.SUCCESS(f'No stuck {status_types} images found (older than {older_than_minutes} minutes)')
             )
             return
 

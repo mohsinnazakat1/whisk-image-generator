@@ -201,7 +201,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 retryAllBtn.style.display = hasFailedPrompts ? 'block' : 'none';
 
-                if (data.status !== 'Completed' && data.status !== 'Failed') {
+                // Always continue polling if there are pending or processing items
+                const hasPendingOrProcessing = (data.counts.pending > 0) || (data.counts.processing > 0);
+                if (data.status !== 'Completed' && data.status !== 'Failed' && hasPendingOrProcessing) {
                     setTimeout(updateStatus, 3000); // Poll every 3 seconds for more responsive updates
                 }
             });

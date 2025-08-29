@@ -119,3 +119,30 @@ A Django-based web application that leverages the Whisk API to generate images f
         ```
 
 4. Open your web browser and navigate to `http://127.0.0.1:8000/` to use the application.
+
+## Management Commands
+
+### Fix Stuck Images
+
+If image generation tasks get stuck in "processing" status, you can use the `fix_stuck_images` command to reset and retry them:
+
+```bash
+# Fix all stuck images (older than 10 minutes by default)
+python manage.py fix_stuck_images --reset-all
+
+# Fix stuck images for a specific bulk request ID
+python manage.py fix_stuck_images --bulk-id 123
+
+# Fix stuck images older than 30 minutes
+python manage.py fix_stuck_images --reset-all --older-than 30
+
+# Fix stuck images for a specific bulk request older than 5 minutes
+python manage.py fix_stuck_images --bulk-id 123 --older-than 5
+```
+
+**Options:**
+
+- `--reset-all`: Reset all stuck processing images to pending and retry
+- `--bulk-id <ID>`: Fix stuck images for a specific bulk request ID
+- `--older-than <minutes>`: Reset images stuck in processing or pending for more than X minutes (default: 10)
+- `--include-pending`: Also reset stuck pending images (not just processing)
